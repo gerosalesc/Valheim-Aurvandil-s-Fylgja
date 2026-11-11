@@ -58,6 +58,7 @@ namespace StandsOfValheim
             aura.range = 3.5f;
             aura.intensity = 1.3f;
             aura.shadows = LightShadows.None;
+            follower.Aura = aura;
 
             return root;
         }

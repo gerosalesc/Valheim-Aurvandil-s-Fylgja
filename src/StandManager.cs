@@ -42,5 +42,17 @@ namespace StandsOfValheim
             }
             return false;
         }
+
+        public static void TriggerBlockReaction(Player p, bool isParry)
+        {
+            if (Active.TryGetValue(p, out var go) && go != null)
+            {
+                var follower = go.GetComponent<StandFollower>();
+                if (follower != null)
+                {
+                    follower.OnBlockHit(isParry);
+                }
+            }
+        }
     }
 }
