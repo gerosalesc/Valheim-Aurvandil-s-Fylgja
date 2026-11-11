@@ -5,7 +5,7 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Star Platinum as a Valheim guardian (forsaken) power. Enforces "one at a time",
-    /// the cooldown, the HUD slot, and activation via the 'F' power key.
+    /// the cooldown (60s), active duration (30s), the HUD slot, and activation via the 'F' power key.
     /// </summary>
     public class SE_StarPlatinum : SE_Stats
     {
@@ -39,15 +39,22 @@ namespace StandsOfValheim
         private static void Register(ObjectDB db)
         {
             if (db.m_StatusEffects.Count == 0) return;
-            if (db.m_StatusEffects.Exists(se => se != null && se.name == SE_StarPlatinum.EffectName)) return;
+
+            var existing = db.m_StatusEffects.Find(s => s != null && s.name == SE_StarPlatinum.EffectName);
+            if (existing != null)
+            {
+                existing.m_ttl = 30f;
+                existing.m_cooldown = 60f;
+                return;
+            }
 
             var se = ScriptableObject.CreateInstance<SE_StarPlatinum>();
             se.name = SE_StarPlatinum.EffectName;
             se.m_name = "Star Platinum";
-            se.m_tooltip = "Summon Star Platinum. Use Secondary Attack (Middle Mouse) for ORA barrage!";
+            se.m_tooltip = "Summon Star Platinum (30s active, 60s cooldown). Use Middle Mouse for ORA barrage, Right Mouse to block/parry!";
             se.m_startMessageType = MessageHud.MessageType.Center;
             se.m_startMessage = "STAR PLATINUM!";
-            se.m_ttl = 120f;
+            se.m_ttl = 30f;
             se.m_cooldown = 60f;
             se.m_addMaxCarryWeight = 100f;
             se.m_staminaRegenMultiplier = 1.3f;
@@ -57,7 +64,7 @@ namespace StandsOfValheim
             if (template != null) se.m_icon = template.m_icon;
 
             db.m_StatusEffects.Add(se);
-            Plugin.Log?.LogInfo("Registered GP_StarPlatinum in ObjectDB.");
+            Plugin.Log?.LogInfo("Registered GP_StarPlatinum in ObjectDB (30s duration, 60s cooldown).");
         }
     }
 }
