@@ -60,6 +60,16 @@ namespace StandsOfValheim
             aura.shadows = LightShadows.None;
             follower.Aura = aura;
 
+            // --- Audio Source ---
+            var audioSource = root.AddComponent<AudioSource>();
+            audioSource.spatialBlend = 0.8f;
+            audioSource.playOnAwake = false;
+            audioSource.loop = true;
+            audioSource.minDistance = 2f;
+            audioSource.maxDistance = 35f;
+            audioSource.volume = 1.0f;
+            follower.StandAudio = audioSource;
+
             return root;
         }
 

@@ -23,6 +23,7 @@ namespace StandsOfValheim
         public Transform Torso;
         public Transform Head;
         public Light Aura;
+        public AudioSource StandAudio;
 
         // Base local transforms for resting pose
         private Vector3 _baseFistL;
@@ -114,6 +115,15 @@ namespace StandsOfValheim
             _attackTimer = _attackDuration;
             _punchAnimTime = 0f;
             _nextPunchDamageTime = 0f;
+
+            // Play ORA barrage sound
+            if (StandAudio != null && SoundManager.OraClip != null)
+            {
+                StandAudio.clip = SoundManager.OraClip;
+                StandAudio.time = 0f;
+                StandAudio.loop = true;
+                StandAudio.Play();
+            }
 
             if (MessageHud.instance != null)
             {
@@ -250,11 +260,25 @@ namespace StandsOfValheim
             IsAttacking = false;
             _cooldownTimer = 0.35f;
 
+            // Stop barrage sound
+            if (StandAudio != null && StandAudio.isPlaying)
+            {
+                StandAudio.Stop();
+            }
+
             // Restore limbs
             if (FistL != null) FistL.localPosition = _baseFistL;
             if (FistR != null) FistR.localPosition = _baseFistR;
             if (ArmL != null) ArmL.localPosition = _baseArmL;
             if (ArmR != null) ArmR.localPosition = _baseArmR;
+        }
+
+        private void OnDestroy()
+        {
+            if (StandAudio != null && StandAudio.isPlaying)
+            {
+                StandAudio.Stop();
+            }
         }
 
         private void UpdateFollow()
