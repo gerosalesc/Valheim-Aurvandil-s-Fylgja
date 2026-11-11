@@ -6,7 +6,7 @@
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <!-- Override on CLI: dotnet build -p:ValheimDir=/path/to/Valheim -->
-    <ValheimDir Condition="'$(ValheimDir)' == ''">$(HOME)/.steam/steam/steamapps/common/Valheim</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == ''">/media/grosales/DATA/SteamLibrary/steamapps/common/Valheim</ValheimDir>
     <ManagedDir>$(ValheimDir)/valheim_Data/Managed</ManagedDir>
     <BepInExCore>$(ValheimDir)/BepInEx/core</BepInExCore>
   </PropertyGroup>
