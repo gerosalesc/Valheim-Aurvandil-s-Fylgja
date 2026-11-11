@@ -12,6 +12,15 @@ namespace StandsOfValheim
 
         public static bool IsActive(Player p) => Active.TryGetValue(p, out var go) && go != null;
 
+        /// <summary>
+        /// Checks if the player's hands are completely free (no weapon, shield, or tool in right or left hand).
+        /// </summary>
+        public static bool AreHandsFree(Player p)
+        {
+            if (p == null) return false;
+            return p.RightItem == null && p.LeftItem == null;
+        }
+
         public static void Summon(Player p)
         {
             Dismiss(p);
@@ -32,6 +41,8 @@ namespace StandsOfValheim
 
         public static bool TriggerAttack(Player p)
         {
+            if (!AreHandsFree(p)) return false;
+
             if (Active.TryGetValue(p, out var go) && go != null)
             {
                 var follower = go.GetComponent<StandFollower>();

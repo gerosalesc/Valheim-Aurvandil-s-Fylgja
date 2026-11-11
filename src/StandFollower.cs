@@ -67,13 +67,13 @@ namespace StandsOfValheim
             if (_cooldownTimer > 0f) _cooldownTimer -= Time.deltaTime;
             if (_blockReactionTimer > 0f) _blockReactionTimer -= Time.deltaTime;
 
-            // Secondary attack input check for local player
+            // Secondary attack input check for local player (hands must be free)
             if (Owner == Player.m_localPlayer)
             {
                 bool secInput = ZInput.GetButton("SecondaryAttack") || ZInput.GetButton("JoySecondaryAttack") ||
                                 ZInput.GetButtonDown("SecondaryAttack") || ZInput.GetButtonDown("JoySecondaryAttack");
 
-                if (secInput && !IsAttacking)
+                if (secInput && !IsAttacking && StandManager.AreHandsFree(Owner))
                 {
                     TryStartAttack();
                 }
@@ -81,9 +81,17 @@ namespace StandsOfValheim
 
             if (IsAttacking)
             {
-                UpdateAttack();
+                if (!StandManager.AreHandsFree(Owner))
+                {
+                    StopAttack();
+                    UpdateFollow();
+                }
+                else
+                {
+                    UpdateAttack();
+                }
             }
-            else if (Owner.IsBlocking())
+            else if (Owner.IsBlocking() && StandManager.AreHandsFree(Owner))
             {
                 UpdateBlockDefend();
             }
@@ -95,7 +103,7 @@ namespace StandsOfValheim
 
         public bool TryStartAttack()
         {
-            if (Owner == null || IsAttacking) return false;
+            if (Owner == null || IsAttacking || !StandManager.AreHandsFree(Owner)) return false;
             if (_cooldownTimer > 0f) return false;
 
             // Stamina check

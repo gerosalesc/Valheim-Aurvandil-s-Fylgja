@@ -3,7 +3,8 @@ using HarmonyLib;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Intercepts PlayerAttackInput to route secondary attack commands to Star Platinum.
+    /// Intercepts PlayerAttackInput to route secondary attack commands to Star Platinum,
+    /// only when hands are free (no items equipped in right or left hand).
     /// </summary>
     [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
     internal static class AttackPatches
@@ -17,7 +18,7 @@ namespace StandsOfValheim
         [HarmonyPrefix]
         private static bool Prefix(Player __instance)
         {
-            if (StandManager.IsActive(__instance))
+            if (StandManager.IsActive(__instance) && StandManager.AreHandsFree(__instance))
             {
                 ref float queuedSec = ref QueuedSecondAttackTimerRef(__instance);
                 ref bool secAttack = ref SecondaryAttackRef(__instance);

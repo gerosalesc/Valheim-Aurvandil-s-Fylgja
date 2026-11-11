@@ -4,9 +4,9 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Patches Humanoid.BlockAttack so that when Star Platinum is summoned,
-    /// the Stand acts as the player's shield with stats calculated from
-    /// the player's base armor and blocking skill.
+    /// Patches Humanoid.BlockAttack so that when Star Platinum is summoned AND the player's hands are free,
+    /// the Stand acts as the player's shield with stats calculated from the player's base armor and blocking skill.
+    /// If weapons or shields are equipped in hand, normal item blocking is used instead.
     /// - Normal block armor = 2x base player armor * (1 + skill * 0.5)
     /// - Parry block armor  = 6x base player armor * (1 + skill * 0.5)
     /// - Parry bonus        = 2.5x
@@ -25,12 +25,12 @@ namespace StandsOfValheim
         [HarmonyPrefix]
         private static bool Prefix(Humanoid __instance, HitData hit, Character attacker, ref bool __result)
         {
-            if (__instance is Player player && StandManager.IsActive(player))
+            if (__instance is Player player && StandManager.IsActive(player) && StandManager.AreHandsFree(player))
             {
                 __result = ExecuteStandBlock(player, hit, attacker);
                 return false; // Stand takes the block, skip vanilla calculation
             }
-            return true;
+            return true; // Equipped items/shield used normally
         }
 
         private static bool ExecuteStandBlock(Player player, HitData hit, Character attacker)
