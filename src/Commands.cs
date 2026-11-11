@@ -2,7 +2,7 @@ using HarmonyLib;
 
 namespace StandsOfValheim
 {
-    /// <summary>Registers dev console commands (require `devcommands` in F5 console).</summary>
+    /// <summary>Dev command (requires `devcommands`) that equips Star Platinum as the guardian power.</summary>
     [HarmonyPatch(typeof(Terminal), "InitTerminal")]
     internal static class Commands
     {
@@ -10,23 +10,12 @@ namespace StandsOfValheim
         private static void Postfix()
         {
             new Terminal.ConsoleCommand("stand",
-                "[summon|dismiss] - toggle Star Platinum behind the player", args =>
+                "equip Star Platinum as your forsaken power (activate it with the power key, like a boss power)", args =>
                 {
                     var player = Player.m_localPlayer;
                     if (player == null) { args.Context.AddString("No local player."); return; }
-
-                    string sub = args.Length > 1 ? args[1].ToLowerInvariant() : "toggle";
-                    bool active = StandManager.IsActive(player);
-                    if (sub == "dismiss" || (sub == "toggle" && active))
-                    {
-                        StandManager.Dismiss(player);
-                        args.Context.AddString("Star Platinum dismissed.");
-                    }
-                    else if (!active)
-                    {
-                        StandManager.Summon(player);
-                        args.Context.AddString("ORA! Star Platinum summoned.");
-                    }
+                    player.SetGuardianPower(SE_StarPlatinum.EffectName);
+                    args.Context.AddString("Star Platinum equipped. Press the forsaken power key to summon.");
                 }, isCheat: true);
         }
     }

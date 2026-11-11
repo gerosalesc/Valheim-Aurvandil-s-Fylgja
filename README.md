@@ -3,7 +3,7 @@
 BepInEx mod adding JoJo Stands. Currently: **Star Platinum** (primitive-shape placeholder model).
 
 ## Usage
-In-game: F5 console → `devcommands` → `stand` (or `stand summon` / `stand dismiss`).
+In-game: F5 console → `devcommands` → `stand` equips Star Platinum as your forsaken power; activate it with the power key (same as boss powers). Only one power can be equipped at a time.
 The stand floats behind the local player and follows them.
 
 ## Build
