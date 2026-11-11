@@ -9,7 +9,6 @@ BepInEx mod for Valheim adding JoJo Stands. Currently featuring: **Star Platinum
   - Features authentic Jotaro / Star Platinum **ORA ORA ORA** voice audio cry.
   - Rapid punching animation with alternating fists.
   - Punches deal 35 blunt damage, heavy knockback, and high stagger.
-  - Semi-transparent grey "ORA!" combat text over hit enemies.
 - **Stand Shield Defense & Parry:** Holding **Right Mouse Button** (Block) causes Star Platinum to move directly in front of you, crossing its arms in a shield stance with a flared energy aura.
   - **Base Block Armor:** `2x` the player's base armor, scaled with the player's **Blocking** skill (`+50%` at skill 100).
   - **Parry Block Armor:** `6x` the player's base armor when timed within 0.25s of raising block.

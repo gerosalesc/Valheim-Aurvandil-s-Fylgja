@@ -113,12 +113,6 @@ namespace StandsOfValheim
                         attacker.Stagger(-hit.m_dir);
                     }
 
-                    // Floating Manga-style parry feedback
-                    if (DamageText.instance != null)
-                    {
-                        DamageText.instance.ShowText(DamageText.TextType.Bonus, hit.m_point + Vector3.up * 0.8f, "<color=#FFD700><alpha=#D0>★ PARRY 2.5x ★</color>", false);
-                    }
-
                     Plugin.Log?.LogInfo($"Stand Block: PARRY! Block Armor: {activeBlockArmor:F1} (6x base), Blocked: {blockedDamage:F1}");
                 }
                 else

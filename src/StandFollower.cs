@@ -9,8 +9,6 @@ namespace StandsOfValheim
     /// </summary>
     internal class StandFollower : MonoBehaviour
     {
-        private const string OraHitText = "<color=#A0A0A0><alpha=#70>ORA!</color>";
-
         public Player Owner;
 
         // Limb transforms
@@ -332,11 +330,6 @@ namespace StandsOfValheim
                 hit.SetAttacker(Owner);
 
                 destructible.Damage(hit);
-
-                if (DamageText.instance != null)
-                {
-                    DamageText.instance.ShowText(DamageText.TextType.Normal, hit.m_point + Vector3.up * 0.5f, OraHitText, false);
-                }
             }
         }
     }
