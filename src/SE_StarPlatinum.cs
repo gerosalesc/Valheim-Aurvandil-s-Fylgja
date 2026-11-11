@@ -4,8 +4,8 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Star Platinum as a Valheim guardian (forsaken) power. Being a real guardian power means the game itself
-    /// enforces "one at a time", the cooldown, the HUD slot and the activation keybind.
+    /// Star Platinum as a Valheim guardian (forsaken) power. Enforces "one at a time",
+    /// the cooldown, the HUD slot, and activation via the 'F' power key.
     /// </summary>
     public class SE_StarPlatinum : SE_Stats
     {
@@ -38,21 +38,26 @@ namespace StandsOfValheim
 
         private static void Register(ObjectDB db)
         {
-            if (db.m_StatusEffects.Count == 0) return; // not populated yet
+            if (db.m_StatusEffects.Count == 0) return;
             if (db.m_StatusEffects.Exists(se => se != null && se.name == SE_StarPlatinum.EffectName)) return;
 
             var se = ScriptableObject.CreateInstance<SE_StarPlatinum>();
             se.name = SE_StarPlatinum.EffectName;
             se.m_name = "Star Platinum";
-            se.m_tooltip = "Summon Star Platinum behind you.";
+            se.m_tooltip = "Summon Star Platinum. Use Secondary Attack (Middle Mouse) for ORA barrage!";
             se.m_startMessageType = MessageHud.MessageType.Center;
-            se.m_startMessage = "ORA!";
+            se.m_startMessage = "STAR PLATINUM!";
             se.m_ttl = 120f;
             se.m_cooldown = 60f;
-            // Borrow an existing boss power's icon so the HUD doesn't choke on a null sprite.
+            se.m_addMaxCarryWeight = 100f;
+            se.m_staminaRegenMultiplier = 1.3f;
+
+            // Borrow an existing boss power icon
             var template = db.m_StatusEffects.Find(s => s != null && s.name == "GP_Eikthyr");
             if (template != null) se.m_icon = template.m_icon;
+
             db.m_StatusEffects.Add(se);
+            Plugin.Log?.LogInfo("Registered GP_StarPlatinum in ObjectDB.");
         }
     }
 }

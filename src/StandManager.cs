@@ -3,23 +3,44 @@ using UnityEngine;
 
 namespace StandsOfValheim
 {
-    /// <summary>Spawns/despawns the stand visuals. Lifetime is driven by <see cref="SE_StarPlatinum"/>.</summary>
+    /// <summary>
+    /// Spawns, despawns, and manages active Stand game objects.
+    /// </summary>
     internal static class StandManager
     {
         private static readonly Dictionary<Player, GameObject> Active = new Dictionary<Player, GameObject>();
 
+        public static bool IsActive(Player p) => Active.TryGetValue(p, out var go) && go != null;
+
         public static void Summon(Player p)
         {
             Dismiss(p);
-            var go = StarPlatinum.Build();
-            go.AddComponent<StandFollower>().Owner = p;
+            var go = StarPlatinum.Build(p);
             Active[p] = go;
+            Plugin.Log?.LogInfo($"StandManager: Star Platinum summoned for {p.GetPlayerName()}");
         }
 
         public static void Dismiss(Player p)
         {
-            if (Active.TryGetValue(p, out var go) && go != null) Object.Destroy(go);
+            if (Active.TryGetValue(p, out var go) && go != null)
+            {
+                Object.Destroy(go);
+            }
             Active.Remove(p);
+            Plugin.Log?.LogInfo($"StandManager: Star Platinum dismissed for {p.GetPlayerName()}");
+        }
+
+        public static bool TriggerAttack(Player p)
+        {
+            if (Active.TryGetValue(p, out var go) && go != null)
+            {
+                var follower = go.GetComponent<StandFollower>();
+                if (follower != null)
+                {
+                    return follower.TryStartAttack();
+                }
+            }
+            return false;
         }
     }
 }
