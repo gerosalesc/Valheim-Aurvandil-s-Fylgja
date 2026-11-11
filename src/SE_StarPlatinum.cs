@@ -40,31 +40,41 @@ namespace StandsOfValheim
         {
             if (db.m_StatusEffects.Count == 0) return;
 
+            var icon = IconManager.StarPlatinumIcon;
+            if (icon == null)
+            {
+                var template = db.m_StatusEffects.Find(s => s != null && s.name == "GP_Eikthyr");
+                if (template != null) icon = template.m_icon;
+            }
+
             var existing = db.m_StatusEffects.Find(s => s != null && s.name == SE_StarPlatinum.EffectName);
             if (existing != null)
             {
                 existing.m_ttl = 30f;
                 existing.m_cooldown = 60f;
+                if (icon != null) existing.m_icon = icon;
+
+                if (Player.m_localPlayer != null && Player.m_localPlayer.GetGuardianPowerName() == SE_StarPlatinum.EffectName)
+                {
+                    Player.m_localPlayer.SetGuardianPower(SE_StarPlatinum.EffectName);
+                }
                 return;
             }
 
             var se = ScriptableObject.CreateInstance<SE_StarPlatinum>();
             se.name = SE_StarPlatinum.EffectName;
             se.m_name = "Star Platinum";
-            se.m_tooltip = "Summon Star Platinum (30s active, 60s cooldown). Use Middle Mouse for ORA barrage, Right Mouse to block/parry!";
+            se.m_tooltip = "Summon Star Platinum (30s active, 60s cooldown). Free your hands for ORA barrage and Stand shield defense!";
             se.m_startMessageType = MessageHud.MessageType.Center;
             se.m_startMessage = "STAR PLATINUM!";
             se.m_ttl = 30f;
             se.m_cooldown = 60f;
             se.m_addMaxCarryWeight = 100f;
             se.m_staminaRegenMultiplier = 1.3f;
-
-            // Borrow an existing boss power icon
-            var template = db.m_StatusEffects.Find(s => s != null && s.name == "GP_Eikthyr");
-            if (template != null) se.m_icon = template.m_icon;
+            se.m_icon = icon;
 
             db.m_StatusEffects.Add(se);
-            Plugin.Log?.LogInfo("Registered GP_StarPlatinum in ObjectDB (30s duration, 60s cooldown).");
+            Plugin.Log?.LogInfo("Registered GP_StarPlatinum in ObjectDB with Star Platinum runic bust icon.");
         }
     }
 }
