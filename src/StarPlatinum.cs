@@ -6,13 +6,14 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Builds Star Platinum using in-game assets: a semi-transparent, bulked floating player model
-    /// wearing the Carapace Breastplate, Carapace Legs, Dvergr Circlet, and long flowing hair,
-    /// complete with a spectral violet aura and ORA barrage audio.
+    /// wearing the Carapace Breastplate, Carapace Legs, Dvergr Circlet, long black flowing hair,
+    /// and a crimson scarf, complete with an exciting manifestation VFX entrance.
     /// </summary>
     internal static class StarPlatinum
     {
         private static readonly Color StandPurple = new Color(0.62f, 0.28f, 0.92f, 0.72f);
-        private static readonly Color HairColor   = new Color(0.08f, 0.08f, 0.14f, 0.85f);
+        private static readonly Color HairColor   = new Color(0.02f, 0.02f, 0.04f, 0.95f);
+        private static readonly Color ScarfRed    = new Color(0.85f, 0.16f, 0.12f, 0.85f);
         private static readonly Color EmissionGlow = new Color(0.40f, 0.15f, 0.75f) * 0.45f;
 
         public static GameObject Build(Player owner)
@@ -23,6 +24,10 @@ namespace StandsOfValheim
 
             // Bulked scale: Star Platinum is noticeably larger and more imposing than a normal human
             root.transform.localScale = new Vector3(1.22f, 1.22f, 1.22f);
+
+            // Initial position and rotation matching player facing direction (not camera)
+            root.transform.position = owner.transform.TransformPoint(follower.IdleOffset);
+            root.transform.rotation = owner.transform.rotation;
 
             bool builtVisual = false;
             try
@@ -68,7 +73,39 @@ namespace StandsOfValheim
             audioSource.volume = 1.0f;
             follower.StandAudio = audioSource;
 
+            // --- Exciting Manifestation Entrance VFX & Camera Shake ---
+            SpawnEntranceVFX(root.transform.position, root.transform.rotation);
+
             return root;
+        }
+
+        private static void SpawnEntranceVFX(Vector3 position, Quaternion rotation)
+        {
+            try
+            {
+                if (ZNetScene.instance != null)
+                {
+                    string[] vfxCandidates = { "vfx_ghost_spawn", "vfx_spawn_large", "vfx_spawn", "vfx_prespawn" };
+                    foreach (var name in vfxCandidates)
+                    {
+                        var prefab = ZNetScene.instance.GetPrefab(name);
+                        if (prefab != null)
+                        {
+                            UnityEngine.Object.Instantiate(prefab, position, rotation);
+                            break;
+                        }
+                    }
+                }
+
+                if (GameCamera.instance != null)
+                {
+                    GameCamera.instance.AddShake(position, 10f, 0.35f, false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogWarning($"StarPlatinum: Entrance VFX failed: {ex.Message}");
+            }
         }
 
         private static bool TryBuildAssetModel(GameObject root, StandFollower follower, Player owner)
@@ -105,7 +142,7 @@ namespace StandsOfValheim
             var lod = visual.GetComponent<LODGroup>();
             if (lod != null) UnityEngine.Object.DestroyImmediate(lod);
 
-            // Strip any existing clothes/equipment attached to source player
+            // Strip any existing clothes/equipment and beards attached to source player
             CleanExistingEquipment(visual);
 
             // 3. Setup Body SkinnedMeshRenderer
@@ -129,20 +166,33 @@ namespace StandsOfValheim
             EquipArmorPiece("ArmorCarapaceChest", bodyModel, visual);
             EquipArmorPiece("ArmorCarapaceLegs", bodyModel, visual);
 
-            // 5. Locate Head bone & Equip Dvergr Circlet and Hair
+            // 5. Equip Crimson Scarf (CapeLinen)
+            EquipScarf(bodyModel, visual);
+
+            // 6. Locate Head bone & Equip Dvergr Circlet and Long Black Hair (No beard)
             var animator = visual.GetComponent<Animator>();
             Transform headBone = FindBone(bodyModel, visual, HumanBodyBones.Head, "Head");
 
             if (headBone != null)
             {
                 EquipHeadPiece("HelmetDverger", headBone, null);
-                EquipHeadPiece("Hair1", headBone, HairColor);
+
+                // Try long flowing hair variants (Hair14, Hair16, Hair1)
+                string[] hairVariants = { "Hair14", "Hair16", "Hair1" };
+                foreach (var hName in hairVariants)
+                {
+                    if (ObjectDB.instance?.GetItemPrefab(hName) != null)
+                    {
+                        EquipHeadPiece(hName, headBone, HairColor);
+                        break;
+                    }
+                }
             }
 
-            // 6. Make all Stand meshes semi-transparent and apply spectral violet materials
+            // 7. Make all Stand meshes semi-transparent and apply spectral violet materials (preserving red scarf & black hair)
             ApplySpectralStandMaterials(visual);
 
-            // 7. Wire limb bones to StandFollower
+            // 8. Wire limb bones and animator to StandFollower
             follower.StandAnimator = animator;
             follower.Head  = headBone;
             follower.Torso = FindBone(bodyModel, visual, HumanBodyBones.Chest, "Chest") ?? visual.transform;
@@ -151,12 +201,21 @@ namespace StandsOfValheim
             follower.FistL = FindBone(bodyModel, visual, HumanBodyBones.LeftHand, "LeftHand");
             follower.FistR = FindBone(bodyModel, visual, HumanBodyBones.RightHand, "RightHand");
 
-            Plugin.Log?.LogInfo("StarPlatinum: Successfully constructed bulked player model with Carapace armor and Dvergr circlet.");
+            Plugin.Log?.LogInfo("StarPlatinum: Successfully constructed bulked player model with Carapace armor, Dvergr circlet, long black hair, and red scarf.");
             return true;
         }
 
         private static void CleanExistingEquipment(GameObject visual)
         {
+            // Remove any beard objects in hierarchy
+            foreach (var t in visual.GetComponentsInChildren<Transform>(true))
+            {
+                if (t != null && t.gameObject.name.ToLower().Contains("beard"))
+                {
+                    UnityEngine.Object.DestroyImmediate(t.gameObject);
+                }
+            }
+
             for (int i = visual.transform.childCount - 1; i >= 0; i--)
             {
                 Transform child = visual.transform.GetChild(i);
@@ -168,6 +227,72 @@ namespace StandsOfValheim
                 if (n.Contains("(Clone)") || n.StartsWith("attach_") || child.GetComponent<ItemDrop>() != null)
                 {
                     UnityEngine.Object.DestroyImmediate(child.gameObject);
+                }
+            }
+        }
+
+        private static void EquipScarf(SkinnedMeshRenderer bodyModel, GameObject visualRoot)
+        {
+            if (ObjectDB.instance == null) return;
+            GameObject capePrefab = ObjectDB.instance.GetItemPrefab("CapeLinen");
+            if (capePrefab == null)
+            {
+                Plugin.Log?.LogWarning("StarPlatinum: CapeLinen prefab not found in ObjectDB.");
+                return;
+            }
+
+            var attachedPieces = new List<GameObject>();
+
+            for (int i = 0; i < capePrefab.transform.childCount; i++)
+            {
+                Transform child = capePrefab.transform.GetChild(i);
+                if (!child.gameObject.name.StartsWith("attach_")) continue;
+                string text = child.gameObject.name.Substring(7);
+
+                if (text == "skin")
+                {
+                    if (bodyModel == null) continue;
+                    GameObject skinObj = UnityEngine.Object.Instantiate(child.gameObject, bodyModel.transform.parent);
+                    skinObj.name = "StandScarf";
+                    skinObj.SetActive(true);
+                    skinObj.transform.localPosition = Vector3.zero;
+                    skinObj.transform.localRotation = Quaternion.identity;
+
+                    foreach (var smr in skinObj.GetComponentsInChildren<SkinnedMeshRenderer>())
+                    {
+                        smr.rootBone = bodyModel.rootBone;
+                        smr.bones = bodyModel.bones;
+                    }
+                    attachedPieces.Add(skinObj);
+                }
+                else
+                {
+                    Transform boneJoint = Utils.FindChild(visualRoot.transform, text);
+                    if (boneJoint != null)
+                    {
+                        GameObject pieceObj = UnityEngine.Object.Instantiate(child.gameObject, boneJoint);
+                        pieceObj.name = "StandScarf";
+                        pieceObj.SetActive(true);
+                        pieceObj.transform.localPosition = Vector3.zero;
+                        pieceObj.transform.localRotation = Quaternion.identity;
+                        attachedPieces.Add(pieceObj);
+                    }
+                }
+            }
+
+            // Apply scarlet red tint to the scarf
+            var block = new MaterialPropertyBlock();
+            block.SetColor(Shader.PropertyToID("_Color"), ScarfRed);
+            foreach (var piece in attachedPieces)
+            {
+                foreach (var r in piece.GetComponentsInChildren<Renderer>(true))
+                {
+                    r.SetPropertyBlock(block);
+                    if (r.material != null)
+                    {
+                        r.material.color = ScarfRed;
+                        if (r.material.HasProperty("_Color")) r.material.SetColor("_Color", ScarfRed);
+                    }
                 }
             }
         }
@@ -274,9 +399,14 @@ namespace StandsOfValheim
                 var block = new MaterialPropertyBlock();
                 block.SetColor(Shader.PropertyToID("_SkinColor"), overrideColor.Value);
                 block.SetColor(Shader.PropertyToID("_Color"), overrideColor.Value);
-                foreach (var r in attached.GetComponentsInChildren<Renderer>())
+                foreach (var r in attached.GetComponentsInChildren<Renderer>(true))
                 {
                     r.SetPropertyBlock(block);
+                    if (r.material != null)
+                    {
+                        r.material.color = overrideColor.Value;
+                        if (r.material.HasProperty("_Color")) r.material.SetColor("_Color", overrideColor.Value);
+                    }
                 }
             }
 
@@ -291,6 +421,9 @@ namespace StandsOfValheim
                 if (r == null) continue;
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 r.receiveShadows = false;
+
+                bool isScarf = r.name.Contains("StandScarf") || r.name.Contains("CapeLinen") || r.transform.parent?.name.Contains("StandScarf") == true;
+                bool isHair = r.name.Contains("Hair") || r.transform.parent?.name.Contains("Hair") == true;
 
                 var mats = r.materials;
                 for (int i = 0; i < mats.Length; i++)
@@ -308,26 +441,42 @@ namespace StandsOfValheim
                     mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                     mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 15;
 
-                    // Blend colors toward Stand spectral violet with 0.72 alpha
-                    if (mat.HasProperty("_Color"))
+                    if (isScarf)
                     {
-                        Color c = mat.GetColor("_Color");
-                        c.r = Mathf.Lerp(c.r, StandPurple.r, 0.45f);
-                        c.g = Mathf.Lerp(c.g, StandPurple.g, 0.45f);
-                        c.b = Mathf.Lerp(c.b, StandPurple.b, 0.45f);
-                        c.a = 0.72f;
-                        mat.SetColor("_Color", c);
+                        // Scarf remains rich crimson red with transparency
+                        mat.color = ScarfRed;
+                        if (mat.HasProperty("_Color")) mat.SetColor("_Color", ScarfRed);
                     }
-
-                    if (mat.HasProperty("_SkinColor"))
+                    else if (isHair)
                     {
-                        mat.SetColor("_SkinColor", StandPurple);
+                        // Hair remains deep jet black with transparency
+                        mat.color = HairColor;
+                        if (mat.HasProperty("_Color")) mat.SetColor("_Color", HairColor);
+                        if (mat.HasProperty("_SkinColor")) mat.SetColor("_SkinColor", HairColor);
                     }
-
-                    if (mat.HasProperty("_EmissionColor"))
+                    else
                     {
-                        mat.SetColor("_EmissionColor", EmissionGlow);
-                        mat.EnableKeyword("_EMISSION");
+                        // Stand body and carapace armor: spectral violet
+                        if (mat.HasProperty("_Color"))
+                        {
+                            Color c = mat.GetColor("_Color");
+                            c.r = Mathf.Lerp(c.r, StandPurple.r, 0.45f);
+                            c.g = Mathf.Lerp(c.g, StandPurple.g, 0.45f);
+                            c.b = Mathf.Lerp(c.b, StandPurple.b, 0.45f);
+                            c.a = 0.72f;
+                            mat.SetColor("_Color", c);
+                        }
+
+                        if (mat.HasProperty("_SkinColor"))
+                        {
+                            mat.SetColor("_SkinColor", StandPurple);
+                        }
+
+                        if (mat.HasProperty("_EmissionColor"))
+                        {
+                            mat.SetColor("_EmissionColor", EmissionGlow);
+                            mat.EnableKeyword("_EMISSION");
+                        }
                     }
                 }
                 r.materials = mats;
