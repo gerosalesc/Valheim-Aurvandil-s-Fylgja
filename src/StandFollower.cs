@@ -35,14 +35,15 @@ namespace StandsOfValheim
         private float _entranceDuration = 0.7f;
         private Vector3 _targetScale = new Vector3(1.22f, 1.22f, 1.22f);
 
-        // Attack state
+        // Attack state (Hit-limited: 5 punches per barrage, consumes user stamina)
         public bool IsAttacking { get; private set; }
-        private float _attackDuration = 30f; // increased active time to 30 seconds
+        public const int MaxPunchesPerBarrage = 5;
+        private int _punchesRemaining = 0;
         private float _attackTimer = 0f;
         private float _punchAnimTime = 0f;
         private float _nextPunchDamageTime = 0f;
         private float _nextPunchAnimTriggerTime = 0f;
-        private float _staminaCost = 15f;
+        private float _staminaCost = 16f; // Stamina cost per 5-punch barrage
         private float _cooldownTimer = 0f;
 
         // Block reaction state
@@ -224,7 +225,7 @@ namespace StandsOfValheim
             if (Owner == null || IsAttacking || !StandManager.AreHandsFree(Owner)) return false;
             if (_cooldownTimer > 0f) return false;
 
-            // Stamina check
+            // Stamina check: barrage consumes player stamina
             if (Owner.HaveStamina(_staminaCost))
             {
                 Owner.UseStamina(_staminaCost);
@@ -236,9 +237,10 @@ namespace StandsOfValheim
             }
 
             IsAttacking = true;
-            _attackTimer = _attackDuration;
+            _punchesRemaining = MaxPunchesPerBarrage; // exactly 5 hits per trigger
+            _attackTimer = 0.85f; // safety timeout for the 5 hits
             _punchAnimTime = 0f;
-            _nextPunchDamageTime = 0f;
+            _nextPunchDamageTime = Time.time + 0.04f; // first punch starts right away
             _nextPunchAnimTriggerTime = 0f;
 
             // Play fast punch animation on animator
@@ -262,7 +264,7 @@ namespace StandsOfValheim
                 MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, "★ STAR PLATINUM: ORA ORA ORA! ★");
             }
 
-            Plugin.Log?.LogInfo("Star Platinum: ORA barrage activated!");
+            Plugin.Log?.LogInfo("Star Platinum: 5-hit ORA barrage activated!");
             return true;
         }
 
@@ -322,37 +324,36 @@ namespace StandsOfValheim
             // Cycle punch animation rapidly
             if (_punchAnimTime >= _nextPunchAnimTriggerTime)
             {
-                _nextPunchAnimTriggerTime = _punchAnimTime + 0.18f;
+                _nextPunchAnimTriggerTime = _punchAnimTime + 0.14f;
                 TriggerPunchAnim();
             }
 
-            // Punch damage tick every ~0.12s
-            if (Time.time >= _nextPunchDamageTime)
+            // Punch damage tick every ~0.12s, strictly limited to 5 hits per trigger
+            if (Time.time >= _nextPunchDamageTime && _punchesRemaining > 0)
             {
                 _nextPunchDamageTime = Time.time + 0.12f;
+                _punchesRemaining--;
                 PerformPunchHit();
-            }
 
-            // Extend barrage if button held and stamina available
-            if (_attackTimer <= 0f)
-            {
-                bool hold = Owner == Player.m_localPlayer && (ZInput.GetButton("SecondaryAttack") || ZInput.GetButton("JoySecondaryAttack"));
-                if (hold && Owner.HaveStamina(_staminaCost * 0.5f))
-                {
-                    Owner.UseStamina(_staminaCost * 0.5f);
-                    _attackTimer = 0.6f;
-                }
-                else
+                if (_punchesRemaining <= 0)
                 {
                     StopAttack();
+                    return;
                 }
+            }
+
+            // Safety timeout
+            if (_attackTimer <= 0f)
+            {
+                StopAttack();
             }
         }
 
         private void StopAttack()
         {
             IsAttacking = false;
-            _cooldownTimer = 0.35f;
+            _punchesRemaining = 0;
+            _cooldownTimer = 0.25f;
 
             if (StandAnimator != null)
             {
