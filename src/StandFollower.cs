@@ -46,6 +46,12 @@ namespace StandsOfValheim
         private float _staminaCost = 16f; // Stamina cost per 5-punch barrage
         private float _cooldownTimer = 0f;
 
+        // Player unarmed animation parameters
+        private string _punchAnimBase = "unarmed_attack";
+        private int _punchChainLevels = 3;
+        private int _punchIndex = 0;
+        private string _lastTrigger = null;
+
         // Block reaction state
         private float _blockReactionTimer = 0f;
         private bool _isParryReaction = false;
@@ -53,15 +59,23 @@ namespace StandsOfValheim
         // Animator parameter hashes
         private int _blockingParamHash = 0;
         private bool _hasBlockingParam = false;
-        private int _unarmedAttackTriggerHash = 0;
-        private bool _hasUnarmedTrigger = false;
-        private int _punchStateHash = 0;
-        private bool _hasPunchState = false;
 
         private void Start()
         {
             _entranceTimer = _entranceDuration;
             transform.localScale = _targetScale * 0.25f;
+
+            // Detect player's unarmed attack animation configuration
+            if (Owner != null && Owner.m_unarmedWeapon != null)
+            {
+                var shared = Owner.m_unarmedWeapon.m_itemData?.m_shared;
+                if (shared != null && shared.m_attack != null && !string.IsNullOrEmpty(shared.m_attack.m_attackAnimation))
+                {
+                    _punchAnimBase = shared.m_attack.m_attackAnimation;
+                    _punchChainLevels = shared.m_attack.m_attackChainLevels;
+                    Plugin.Log?.LogInfo($"StandFollower: Using player's punch animation '{_punchAnimBase}' (chains: {_punchChainLevels})");
+                }
+            }
 
             if (StandAnimator != null)
             {
@@ -72,22 +86,6 @@ namespace StandsOfValheim
                         _hasBlockingParam = true;
                         _blockingParamHash = p.nameHash;
                     }
-                    else if (p.name == "unarmed_attack")
-                    {
-                        _hasUnarmedTrigger = true;
-                        _unarmedAttackTriggerHash = p.nameHash;
-                    }
-                }
-
-                if (StandAnimator.HasState(0, Animator.StringToHash("Player_punchnew")))
-                {
-                    _hasPunchState = true;
-                    _punchStateHash = Animator.StringToHash("Player_punchnew");
-                }
-                else if (StandAnimator.HasState(0, Animator.StringToHash("unarmed_attack")))
-                {
-                    _hasPunchState = true;
-                    _punchStateHash = Animator.StringToHash("unarmed_attack");
                 }
             }
         }
@@ -161,34 +159,8 @@ namespace StandsOfValheim
                 StandAnimator.SetBool(_blockingParamHash, isBlocking);
             }
 
-            // Procedural bone posing applied in LateUpdate after the Animator has evaluated
-            if (IsAttacking)
-            {
-                // Rapid alternating dual-fist punches (both hands flurry)
-                float punchL = Mathf.Sin(_punchAnimTime * 28f);
-                float punchR = Mathf.Sin(_punchAnimTime * 28f + Mathf.PI);
-
-                float extL = Mathf.Clamp(punchL, 0f, 1f) * 0.72f;
-                float extR = Mathf.Clamp(punchR, 0f, 1f) * 0.72f;
-
-                if (FistL != null)
-                {
-                    FistL.position += transform.forward * extL + transform.up * (punchL * 0.04f);
-                }
-                if (FistR != null)
-                {
-                    FistR.position += transform.forward * extR + transform.up * (punchR * 0.04f);
-                }
-                if (ArmL != null)
-                {
-                    ArmL.position += transform.forward * (extL * 0.45f);
-                }
-                if (ArmR != null)
-                {
-                    ArmR.position += transform.forward * (extR * 0.45f);
-                }
-            }
-            else if (isBlocking)
+            // Defensive and entrance bone posing (punching now uses pure accelerated player animator)
+            if (isBlocking)
             {
                 if (_blockReactionTimer > 0f)
                 {
@@ -240,15 +212,13 @@ namespace StandsOfValheim
             _punchesRemaining = MaxPunchesPerBarrage; // exactly 5 hits per trigger
             _attackTimer = 0.85f; // safety timeout for the 5 hits
             _punchAnimTime = 0f;
+            _punchIndex = 0;
+            _lastTrigger = null;
             _nextPunchDamageTime = Time.time + 0.04f; // first punch starts right away
             _nextPunchAnimTriggerTime = 0f;
 
-            // Play fast punch animation on animator
-            if (StandAnimator != null)
-            {
-                StandAnimator.speed = 3.5f; // Fast punching animation!
-                TriggerPunchAnim();
-            }
+            // Trigger initial accelerated punch animation
+            TriggerPunchAnim();
 
             // Play ORA barrage sound
             if (StandAudio != null && SoundManager.OraClip != null)
@@ -271,14 +241,72 @@ namespace StandsOfValheim
         private void TriggerPunchAnim()
         {
             if (StandAnimator == null) return;
-            if (_hasUnarmedTrigger)
+
+            // Accelerated animation speed for rapid punches (3.2x)
+            StandAnimator.speed = 3.2f;
+
+            // Ensure unarmed animation state (0 = Unarmed)
+            if (HasParameter(StandAnimator, "statef")) StandAnimator.SetFloat("statef", 0f);
+            if (HasParameter(StandAnimator, "statei")) StandAnimator.SetInteger("statei", 0);
+
+            // Determine punch trigger based on player's unarmed attack
+            string baseAnim = !string.IsNullOrEmpty(_punchAnimBase) ? _punchAnimBase : "unarmed_attack";
+
+            // Cycle through punch chain: 0 (left), 1 (right), and 2 (finisher)
+            string triggerName;
+            if (_punchChainLevels > 1)
             {
-                StandAnimator.SetTrigger(_unarmedAttackTriggerHash);
+                int chainIdx = (_punchIndex < 4) ? (_punchIndex % 2) : 2; // 0, 1, 0, 1, 2
+                triggerName = baseAnim + chainIdx;
             }
-            else if (_hasPunchState)
+            else
             {
-                StandAnimator.Play(_punchStateHash, 0, 0f);
+                triggerName = baseAnim;
             }
+            _punchIndex++;
+
+            // Reset previous trigger if any to allow rapid retriggering
+            if (!string.IsNullOrEmpty(_lastTrigger) && HasParameter(StandAnimator, _lastTrigger))
+            {
+                StandAnimator.ResetTrigger(_lastTrigger);
+            }
+
+            // Set new trigger
+            if (HasParameter(StandAnimator, triggerName))
+            {
+                StandAnimator.SetTrigger(triggerName);
+                _lastTrigger = triggerName;
+            }
+            else if (HasParameter(StandAnimator, baseAnim))
+            {
+                StandAnimator.SetTrigger(baseAnim);
+                _lastTrigger = baseAnim;
+            }
+
+            // Crossfade into state directly if present in Animator for instantaneous punch snap
+            int stateHash = Animator.StringToHash(triggerName);
+            if (StandAnimator.HasState(0, stateHash))
+            {
+                StandAnimator.CrossFadeInFixedTime(stateHash, 0.04f, 0, 0f);
+            }
+            else
+            {
+                int baseHash = Animator.StringToHash(baseAnim);
+                if (StandAnimator.HasState(0, baseHash))
+                {
+                    StandAnimator.CrossFadeInFixedTime(baseHash, 0.04f, 0, 0f);
+                }
+            }
+        }
+
+        private static bool HasParameter(Animator animator, string paramName)
+        {
+            if (animator == null || string.IsNullOrEmpty(paramName)) return false;
+            foreach (var p in animator.parameters)
+            {
+                if (p.name == paramName) return true;
+            }
+            return false;
         }
 
         public void OnBlockHit(bool isParry)
@@ -358,10 +386,11 @@ namespace StandsOfValheim
             if (StandAnimator != null)
             {
                 StandAnimator.speed = 1.0f;
-                if (_hasUnarmedTrigger)
+                if (!string.IsNullOrEmpty(_lastTrigger) && HasParameter(StandAnimator, _lastTrigger))
                 {
-                    StandAnimator.ResetTrigger(_unarmedAttackTriggerHash);
+                    StandAnimator.ResetTrigger(_lastTrigger);
                 }
+                _lastTrigger = null;
             }
 
             // Stop barrage sound
