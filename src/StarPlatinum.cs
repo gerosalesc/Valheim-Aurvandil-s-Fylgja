@@ -1,17 +1,19 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Builds Star Platinum with stylized stand colors (purple humanoid, gold trim, dark hair)
-    /// and attaches limbs to StandFollower for attack animations.
+    /// Builds Star Platinum using in-game assets: a semi-transparent, bulked floating player model
+    /// wearing the Carapace Breastplate, Carapace Legs, Dvergr Circlet, and long flowing hair,
+    /// complete with a spectral violet aura and ORA barrage audio.
     /// </summary>
     internal static class StarPlatinum
     {
-        private static readonly Color StandPurple = new Color(0.55f, 0.22f, 0.85f);
-        private static readonly Color HairColor   = new Color(0.08f, 0.08f, 0.12f);
-        private static readonly Color GoldTrim    = new Color(0.95f, 0.82f, 0.22f);
-        private static readonly Color EyeRed      = new Color(1.0f, 0.20f, 0.20f);
+        private static readonly Color StandPurple = new Color(0.62f, 0.28f, 0.92f, 0.72f);
+        private static readonly Color HairColor   = new Color(0.08f, 0.08f, 0.14f, 0.85f);
+        private static readonly Color EmissionGlow = new Color(0.40f, 0.15f, 0.75f) * 0.45f;
 
         public static GameObject Build(Player owner)
         {
@@ -19,48 +21,44 @@ namespace StandsOfValheim
             var follower = root.AddComponent<StandFollower>();
             follower.Owner = owner;
 
-            // --- Torso & Belt ---
-            follower.Torso = Part(root, PrimitiveType.Capsule, "Torso", new Vector3(0, 1.15f, 0), new Vector3(0.55f, 0.45f, 0.35f), StandPurple);
-            Part(root, PrimitiveType.Cylinder, "Belt", new Vector3(0, 0.82f, 0), new Vector3(0.56f, 0.08f, 0.36f), GoldTrim);
+            // Bulked scale: Star Platinum is noticeably larger and more imposing than a normal human
+            root.transform.localScale = new Vector3(1.22f, 1.22f, 1.22f);
 
-            // --- Head, Hair, Headband, Eyes ---
-            follower.Head = Part(root, PrimitiveType.Sphere, "Head", new Vector3(0, 1.75f, 0), new Vector3(0.35f, 0.40f, 0.35f), StandPurple);
-            Part(follower.Head.gameObject, PrimitiveType.Sphere, "Hair", new Vector3(0, 0.15f, -0.06f), new Vector3(0.42f, 0.28f, 0.42f), HairColor);
-            Part(follower.Head.gameObject, PrimitiveType.Cylinder, "Headband", new Vector3(0, 0.04f, 0), new Vector3(0.36f, 0.04f, 0.36f), GoldTrim);
-            Part(follower.Head.gameObject, PrimitiveType.Sphere, "EyeL", new Vector3(-0.09f, 0.02f, 0.16f), new Vector3(0.06f, 0.04f, 0.04f), EyeRed);
-            Part(follower.Head.gameObject, PrimitiveType.Sphere, "EyeR", new Vector3(0.09f, 0.02f, 0.16f), new Vector3(0.06f, 0.04f, 0.04f), EyeRed);
+            bool builtVisual = false;
+            try
+            {
+                builtVisual = TryBuildAssetModel(root, follower, owner);
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"StarPlatinum: Failed to build asset model: {ex}");
+            }
 
-            // --- Shoulders ---
-            Part(root, PrimitiveType.Sphere, "ShoulderL", new Vector3(-0.45f, 1.35f, 0), new Vector3(0.24f, 0.18f, 0.24f), GoldTrim);
-            Part(root, PrimitiveType.Sphere, "ShoulderR", new Vector3(0.45f, 1.35f, 0), new Vector3(0.24f, 0.18f, 0.24f), GoldTrim);
+            if (!builtVisual)
+            {
+                Plugin.Log?.LogWarning("StarPlatinum: Falling back to procedural primitive model.");
+                BuildPrimitiveFallback(root, follower);
+            }
 
-            // --- Arms ---
-            follower.ArmL = Part(root, PrimitiveType.Capsule, "ArmL", new Vector3(-0.48f, 1.10f, 0.05f), new Vector3(0.18f, 0.36f, 0.18f), StandPurple);
-            follower.ArmR = Part(root, PrimitiveType.Capsule, "ArmR", new Vector3(0.48f, 1.10f, 0.05f), new Vector3(0.18f, 0.36f, 0.18f), StandPurple);
+            // Remove all physics colliders from Stand so it floats freely without physics interference
+            foreach (var col in root.GetComponentsInChildren<Collider>(true))
+            {
+                UnityEngine.Object.Destroy(col);
+            }
 
-            // --- Fists & Glove Trim ---
-            follower.FistL = Part(root, PrimitiveType.Sphere, "FistL", new Vector3(-0.48f, 0.68f, 0.15f), new Vector3(0.25f, 0.25f, 0.25f), StandPurple);
-            follower.FistR = Part(root, PrimitiveType.Sphere, "FistR", new Vector3(0.48f, 0.68f, 0.15f), new Vector3(0.25f, 0.25f, 0.25f), StandPurple);
-            Part(follower.FistL.gameObject, PrimitiveType.Sphere, "TrimL", new Vector3(0, 0.08f, 0), new Vector3(0.22f, 0.08f, 0.22f), GoldTrim);
-            Part(follower.FistR.gameObject, PrimitiveType.Sphere, "TrimR", new Vector3(0, 0.08f, 0), new Vector3(0.22f, 0.08f, 0.22f), GoldTrim);
-
-            // --- Legs ---
-            follower.LegL = Part(root, PrimitiveType.Capsule, "LegL", new Vector3(-0.20f, 0.35f, 0), new Vector3(0.22f, 0.40f, 0.22f), StandPurple);
-            follower.LegR = Part(root, PrimitiveType.Capsule, "LegR", new Vector3(0.20f, 0.35f, 0), new Vector3(0.22f, 0.40f, 0.22f), StandPurple);
-
-            // --- Aura Point Light ---
+            // --- Stand Aura Point Light ---
             var lightObj = new GameObject("StandAura");
             lightObj.transform.SetParent(root.transform, false);
-            lightObj.transform.localPosition = new Vector3(0, 1.2f, 0);
+            lightObj.transform.localPosition = new Vector3(0, 1.35f, 0);
             var aura = lightObj.AddComponent<Light>();
             aura.type = LightType.Point;
-            aura.color = new Color(0.68f, 0.25f, 1.0f);
-            aura.range = 3.5f;
-            aura.intensity = 1.3f;
+            aura.color = new Color(0.70f, 0.25f, 1.0f);
+            aura.range = 4.2f;
+            aura.intensity = 1.4f;
             aura.shadows = LightShadows.None;
             follower.Aura = aura;
 
-            // --- Audio Source ---
+            // --- Audio Source (ORA Barrage) ---
             var audioSource = root.AddComponent<AudioSource>();
             audioSource.spatialBlend = 0.8f;
             audioSource.playOnAwake = false;
@@ -73,13 +71,307 @@ namespace StandsOfValheim
             return root;
         }
 
+        private static bool TryBuildAssetModel(GameObject root, StandFollower follower, Player owner)
+        {
+            // 1. Locate source player Visual hierarchy
+            GameObject sourceVisual = null;
+            if (Game.instance != null && Game.instance.m_playerPrefab != null)
+            {
+                var v = Game.instance.m_playerPrefab.transform.Find("Visual");
+                if (v != null) sourceVisual = v.gameObject;
+            }
+            if (sourceVisual == null && owner != null)
+            {
+                var v = owner.transform.Find("Visual");
+                if (v != null) sourceVisual = v.gameObject;
+            }
+
+            if (sourceVisual == null)
+            {
+                Plugin.Log?.LogWarning("StarPlatinum: Could not find source player Visual.");
+                return false;
+            }
+
+            // 2. Clone the visual hierarchy
+            GameObject visual = UnityEngine.Object.Instantiate(sourceVisual, root.transform);
+            visual.name = "Visual";
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+
+            // Remove unnecessary components on the visual root
+            var animEvent = visual.GetComponent<CharacterAnimEvent>();
+            if (animEvent != null) UnityEngine.Object.DestroyImmediate(animEvent);
+
+            var lod = visual.GetComponent<LODGroup>();
+            if (lod != null) UnityEngine.Object.DestroyImmediate(lod);
+
+            // Strip any existing clothes/equipment attached to source player
+            CleanExistingEquipment(visual);
+
+            // 3. Setup Body SkinnedMeshRenderer
+            SkinnedMeshRenderer bodyModel = visual.GetComponentInChildren<SkinnedMeshRenderer>();
+            if (bodyModel == null)
+            {
+                Plugin.Log?.LogWarning("StarPlatinum: SkinnedMeshRenderer not found in visual.");
+                return false;
+            }
+
+            // Ensure base male/muscular mesh and material
+            var ownerVis = owner != null ? owner.GetComponent<VisEquipment>() : null;
+            if (ownerVis != null && ownerVis.m_models != null && ownerVis.m_models.Length > 0)
+            {
+                var baseModel = ownerVis.m_models[0];
+                if (baseModel.m_mesh != null) bodyModel.sharedMesh = baseModel.m_mesh;
+                if (baseModel.m_baseMaterial != null) bodyModel.material = new Material(baseModel.m_baseMaterial);
+            }
+
+            // 4. Equip Carapace Armor
+            EquipArmorPiece("ArmorCarapaceChest", bodyModel, visual);
+            EquipArmorPiece("ArmorCarapaceLegs", bodyModel, visual);
+
+            // 5. Locate Head bone & Equip Dvergr Circlet and Hair
+            var animator = visual.GetComponent<Animator>();
+            Transform headBone = FindBone(bodyModel, visual, HumanBodyBones.Head, "Head");
+
+            if (headBone != null)
+            {
+                EquipHeadPiece("HelmetDverger", headBone, null);
+                EquipHeadPiece("Hair1", headBone, HairColor);
+            }
+
+            // 6. Make all Stand meshes semi-transparent and apply spectral violet materials
+            ApplySpectralStandMaterials(visual);
+
+            // 7. Wire limb bones to StandFollower
+            follower.StandAnimator = animator;
+            follower.Head  = headBone;
+            follower.Torso = FindBone(bodyModel, visual, HumanBodyBones.Chest, "Chest") ?? visual.transform;
+            follower.ArmL  = FindBone(bodyModel, visual, HumanBodyBones.LeftLowerArm, "LeftArm");
+            follower.ArmR  = FindBone(bodyModel, visual, HumanBodyBones.RightLowerArm, "RightArm");
+            follower.FistL = FindBone(bodyModel, visual, HumanBodyBones.LeftHand, "LeftHand");
+            follower.FistR = FindBone(bodyModel, visual, HumanBodyBones.RightHand, "RightHand");
+
+            Plugin.Log?.LogInfo("StarPlatinum: Successfully constructed bulked player model with Carapace armor and Dvergr circlet.");
+            return true;
+        }
+
+        private static void CleanExistingEquipment(GameObject visual)
+        {
+            for (int i = visual.transform.childCount - 1; i >= 0; i--)
+            {
+                Transform child = visual.transform.GetChild(i);
+                string n = child.gameObject.name;
+                if (n == "Armature" || n.StartsWith("body") || n.StartsWith("PlayerModel"))
+                {
+                    continue;
+                }
+                if (n.Contains("(Clone)") || n.StartsWith("attach_") || child.GetComponent<ItemDrop>() != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(child.gameObject);
+                }
+            }
+        }
+
+        private static void EquipArmorPiece(string itemName, SkinnedMeshRenderer bodyModel, GameObject visualRoot)
+        {
+            if (ObjectDB.instance == null) return;
+            GameObject itemPrefab = ObjectDB.instance.GetItemPrefab(itemName);
+            if (itemPrefab == null)
+            {
+                Plugin.Log?.LogWarning($"StarPlatinum: Item prefab '{itemName}' not found in ObjectDB.");
+                return;
+            }
+
+            ItemDrop drop = itemPrefab.GetComponent<ItemDrop>();
+            if (drop != null && drop.m_itemData != null && drop.m_itemData.m_shared != null)
+            {
+                Material armorMat = drop.m_itemData.m_shared.m_armorMaterial;
+                if (armorMat != null && bodyModel != null && bodyModel.material != null)
+                {
+                    if (armorMat.HasProperty("_ChestTex")) bodyModel.material.SetTexture("_ChestTex", armorMat.GetTexture("_ChestTex"));
+                    if (armorMat.HasProperty("_ChestBumpMap")) bodyModel.material.SetTexture("_ChestBumpMap", armorMat.GetTexture("_ChestBumpMap"));
+                    if (armorMat.HasProperty("_ChestMetal")) bodyModel.material.SetTexture("_ChestMetal", armorMat.GetTexture("_ChestMetal"));
+
+                    if (armorMat.HasProperty("_LegsTex")) bodyModel.material.SetTexture("_LegsTex", armorMat.GetTexture("_LegsTex"));
+                    if (armorMat.HasProperty("_LegsBumpMap")) bodyModel.material.SetTexture("_LegsBumpMap", armorMat.GetTexture("_LegsBumpMap"));
+                    if (armorMat.HasProperty("_LegsMetal")) bodyModel.material.SetTexture("_LegsMetal", armorMat.GetTexture("_LegsMetal"));
+                }
+            }
+
+            for (int i = 0; i < itemPrefab.transform.childCount; i++)
+            {
+                Transform child = itemPrefab.transform.GetChild(i);
+                if (!child.gameObject.name.StartsWith("attach_")) continue;
+                string text = child.gameObject.name.Substring(7);
+
+                if (text == "skin")
+                {
+                    if (bodyModel == null) continue;
+                    GameObject skinObj = UnityEngine.Object.Instantiate(child.gameObject, bodyModel.transform.parent);
+                    skinObj.SetActive(true);
+                    skinObj.transform.localPosition = Vector3.zero;
+                    skinObj.transform.localRotation = Quaternion.identity;
+
+                    foreach (var smr in skinObj.GetComponentsInChildren<SkinnedMeshRenderer>())
+                    {
+                        smr.rootBone = bodyModel.rootBone;
+                        smr.bones = bodyModel.bones;
+                    }
+                }
+                else
+                {
+                    Transform boneJoint = Utils.FindChild(visualRoot.transform, text);
+                    if (boneJoint != null)
+                    {
+                        GameObject pieceObj = UnityEngine.Object.Instantiate(child.gameObject, boneJoint);
+                        pieceObj.SetActive(true);
+                        pieceObj.transform.localPosition = Vector3.zero;
+                        pieceObj.transform.localRotation = Quaternion.identity;
+                    }
+                }
+            }
+        }
+
+        private static GameObject EquipHeadPiece(string itemName, Transform headBone, Color? overrideColor)
+        {
+            if (headBone == null || ObjectDB.instance == null) return null;
+            GameObject itemPrefab = ObjectDB.instance.GetItemPrefab(itemName);
+            if (itemPrefab == null)
+            {
+                Plugin.Log?.LogWarning($"StarPlatinum: Item prefab '{itemName}' not found in ObjectDB.");
+                return null;
+            }
+
+            Transform attachSource = null;
+            for (int i = 0; i < itemPrefab.transform.childCount; i++)
+            {
+                Transform child = itemPrefab.transform.GetChild(i);
+                if (child.name == "attach" || child.name.StartsWith("attach_"))
+                {
+                    attachSource = child;
+                    break;
+                }
+            }
+            if (attachSource == null) return null;
+
+            Transform equipOffset = itemPrefab.transform.Find("equipoffset");
+            Vector3 localPos = equipOffset != null ? equipOffset.localPosition : Vector3.zero;
+            Quaternion localRot = equipOffset != null ? equipOffset.localRotation : Quaternion.identity;
+
+            GameObject attached = UnityEngine.Object.Instantiate(attachSource.gameObject, headBone);
+            attached.SetActive(true);
+            attached.transform.localPosition = localPos;
+            attached.transform.localRotation = localRot;
+
+            Transform equipedChild = attached.transform.Find("equiped");
+            if (equipedChild != null)
+            {
+                equipedChild.gameObject.SetActive(true);
+            }
+
+            if (overrideColor.HasValue)
+            {
+                var block = new MaterialPropertyBlock();
+                block.SetColor(Shader.PropertyToID("_SkinColor"), overrideColor.Value);
+                block.SetColor(Shader.PropertyToID("_Color"), overrideColor.Value);
+                foreach (var r in attached.GetComponentsInChildren<Renderer>())
+                {
+                    r.SetPropertyBlock(block);
+                }
+            }
+
+            return attached;
+        }
+
+        private static void ApplySpectralStandMaterials(GameObject visual)
+        {
+            var renderers = visual.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in renderers)
+            {
+                if (r == null) continue;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+
+                var mats = r.materials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var mat = mats[i];
+                    if (mat == null) continue;
+
+                    // Transparency blending configuration
+                    mat.SetFloat("_Mode", 3f); // Transparent
+                    mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    mat.SetInt("_ZWrite", 0);
+                    mat.DisableKeyword("_ALPHATEST_ON");
+                    mat.EnableKeyword("_ALPHABLEND_ON");
+                    mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                    mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 15;
+
+                    // Blend colors toward Stand spectral violet with 0.72 alpha
+                    if (mat.HasProperty("_Color"))
+                    {
+                        Color c = mat.GetColor("_Color");
+                        c.r = Mathf.Lerp(c.r, StandPurple.r, 0.45f);
+                        c.g = Mathf.Lerp(c.g, StandPurple.g, 0.45f);
+                        c.b = Mathf.Lerp(c.b, StandPurple.b, 0.45f);
+                        c.a = 0.72f;
+                        mat.SetColor("_Color", c);
+                    }
+
+                    if (mat.HasProperty("_SkinColor"))
+                    {
+                        mat.SetColor("_SkinColor", StandPurple);
+                    }
+
+                    if (mat.HasProperty("_EmissionColor"))
+                    {
+                        mat.SetColor("_EmissionColor", EmissionGlow);
+                        mat.EnableKeyword("_EMISSION");
+                    }
+                }
+                r.materials = mats;
+            }
+        }
+
+        private static Transform FindBone(SkinnedMeshRenderer smr, GameObject visual, HumanBodyBones boneId, string fallbackName)
+        {
+            var anim = visual.GetComponent<Animator>();
+            if (anim != null && anim.isHuman)
+            {
+                var b = anim.GetBoneTransform(boneId);
+                if (b != null) return b;
+            }
+
+            if (smr != null && smr.bones != null)
+            {
+                string lower = fallbackName.ToLower();
+                foreach (var b in smr.bones)
+                {
+                    if (b != null && b.name.ToLower().Contains(lower)) return b;
+                }
+            }
+
+            return Utils.FindChild(visual.transform, fallbackName);
+        }
+
+        private static void BuildPrimitiveFallback(GameObject root, StandFollower follower)
+        {
+            var goldTrim = new Color(0.95f, 0.82f, 0.22f);
+            follower.Torso = Part(root, PrimitiveType.Capsule, "Torso", new Vector3(0, 1.15f, 0), new Vector3(0.55f, 0.45f, 0.35f), StandPurple);
+            follower.Head = Part(root, PrimitiveType.Sphere, "Head", new Vector3(0, 1.75f, 0), new Vector3(0.35f, 0.40f, 0.35f), StandPurple);
+            follower.ArmL = Part(root, PrimitiveType.Capsule, "ArmL", new Vector3(-0.48f, 1.10f, 0.05f), new Vector3(0.18f, 0.36f, 0.18f), StandPurple);
+            follower.ArmR = Part(root, PrimitiveType.Capsule, "ArmR", new Vector3(0.48f, 1.10f, 0.05f), new Vector3(0.18f, 0.36f, 0.18f), StandPurple);
+            follower.FistL = Part(root, PrimitiveType.Sphere, "FistL", new Vector3(-0.48f, 0.68f, 0.15f), new Vector3(0.25f, 0.25f, 0.25f), StandPurple);
+            follower.FistR = Part(root, PrimitiveType.Sphere, "FistR", new Vector3(0.48f, 0.68f, 0.15f), new Vector3(0.25f, 0.25f, 0.25f), StandPurple);
+        }
+
         private static Transform Part(GameObject parent, PrimitiveType type, string name, Vector3 localPos, Vector3 localScale, Color color)
         {
             var go = GameObject.CreatePrimitive(type);
             go.name = name;
-
             var col = go.GetComponent<Collider>();
-            if (col != null) Object.Destroy(col);
+            if (col != null) UnityEngine.Object.Destroy(col);
 
             go.transform.SetParent(parent.transform, false);
             go.transform.localPosition = localPos;
@@ -90,7 +382,6 @@ namespace StandsOfValheim
             {
                 renderer.material = StandMaterialManager.GetMaterial(color);
             }
-
             return go.transform;
         }
     }
