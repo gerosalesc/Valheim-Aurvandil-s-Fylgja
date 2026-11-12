@@ -420,35 +420,49 @@ namespace StandsOfValheim
         {
             if (ObjectDB.instance == null) return null;
 
-            // Preferred long flowing, wild mane hair variants matching Star Platinum
+            // Preferred hair style: Painter Curls (Hair19) as requested
             string[] preferredHairs = new string[]
             {
-                "Hair14", // Long flowing locks
-                "Hair16", // Long wild hair
-                "Hair38", // Voluminous flowing hair (Ashlands)
-                "Hair11", // Wild Viking mane
-                "Hair25", // Long wild locks
-                "Hair32", // Long hair
-                "Hair1",  // Classic long hair
-                "Hair4",  // Long ponytail/mane
-                "Hair13"  // Long braided mane
+                "Hair19", // Painter Curls
+                "Hair14", // Long flowing locks fallback
+                "Hair16", // Long wild hair fallback
+                "Hair38", // Voluminous flowing hair fallback
+                "Hair11", // Wild Viking mane fallback
+                "Hair1"   // Classic long hair fallback
             };
 
             GameObject hairPrefab = null;
             string selectedHairName = null;
 
+            // 1. Direct prefab lookup
             foreach (var hName in preferredHairs)
             {
                 var prefab = ObjectDB.instance.GetItemPrefab(hName);
                 if (prefab != null)
                 {
                     hairPrefab = prefab;
-                    selectedHairName = hName;
+                    selectedHairName = hName == "Hair19" ? "Painter Curls (Hair19)" : hName;
                     break;
                 }
             }
 
-            // Fallback: search any Hair customization in ObjectDB
+            // 2. Search by localization token ($customization_hair19) or name in customizations
+            if (hairPrefab == null)
+            {
+                var allHairs = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Customization, "Hair");
+                foreach (var h in allHairs)
+                {
+                    if (h == null) continue;
+                    if (h.name == "Hair19" || h.m_itemData?.m_shared?.m_name == "$customization_hair19")
+                    {
+                        hairPrefab = h.gameObject;
+                        selectedHairName = "Painter Curls (Hair19)";
+                        break;
+                    }
+                }
+            }
+
+            // 3. General fallback if specific ones not found
             if (hairPrefab == null)
             {
                 var allHairs = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Customization, "Hair");
