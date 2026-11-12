@@ -37,7 +37,7 @@ namespace StandsOfValheim
 
         // Attack state
         public bool IsAttacking { get; private set; }
-        private float _attackDuration = 1.3f;
+        private float _attackDuration = 30f; // increased active time to 30 seconds
         private float _attackTimer = 0f;
         private float _punchAnimTime = 0f;
         private float _nextPunchDamageTime = 0f;

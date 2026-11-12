@@ -11,7 +11,8 @@ namespace StandsOfValheim
     /// </summary>
     internal static class StarPlatinum
     {
-        private static readonly Color StandPurple = new Color(0.62f, 0.28f, 0.92f, 0.72f);
+        private static readonly Color StandPurple = new Color(0.60f, 0.20f, 0.90f, 0.45f);
+        private static readonly Color GoldColor = new Color(1.0f, 0.84f, 0.0f, 0.45f);
         private static readonly Color HairColor   = new Color(0.02f, 0.02f, 0.04f, 0.95f);
         private static readonly Color ScarfRed    = new Color(0.85f, 0.16f, 0.12f, 0.85f);
         private static readonly Color EmissionGlow = new Color(0.40f, 0.15f, 0.75f) * 0.45f;
@@ -164,10 +165,10 @@ namespace StandsOfValheim
 
             // 4. Equip Carapace Armor
             EquipArmorPiece("ArmorCarapaceChest", bodyModel, visual);
-            EquipArmorPiece("ArmorCarapaceLegs", bodyModel, visual);
+            // Legs armor removed as per user request
 
-            // 5. Equip Crimson Scarf (CapeLinen)
-            EquipScarf(bodyModel, visual);
+            // 5. Equip Crimson Scarf (CapeLinen) removed as per user request
+            //EquipScarf(bodyModel, visual);
 
             // 6. Locate Head bone & Equip Dvergr Circlet and Long Black Hair (No beard)
             var animator = visual.GetComponent<Animator>();
@@ -454,6 +455,13 @@ namespace StandsOfValheim
                         if (mat.HasProperty("_Color")) mat.SetColor("_Color", HairColor);
                         if (mat.HasProperty("_SkinColor")) mat.SetColor("_SkinColor", HairColor);
                     }
+                    else if (r.name.Contains("Chest") || r.name.Contains("CarapaceChest"))
+                    {
+                        // Gold chest armor tint (same translucency as body)
+                        mat.color = GoldColor;
+                        if (mat.HasProperty("_Color")) mat.SetColor("_Color", GoldColor);
+                        // Ensure transparency settings are applied (already set earlier)
+                    }
                     else
                     {
                         // Stand body and carapace armor: spectral violet
@@ -463,7 +471,7 @@ namespace StandsOfValheim
                             c.r = Mathf.Lerp(c.r, StandPurple.r, 0.45f);
                             c.g = Mathf.Lerp(c.g, StandPurple.g, 0.45f);
                             c.b = Mathf.Lerp(c.b, StandPurple.b, 0.45f);
-                            c.a = 0.72f;
+                            c.a = 0.45f;
                             mat.SetColor("_Color", c);
                         }
 
