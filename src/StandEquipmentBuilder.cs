@@ -20,7 +20,7 @@ namespace StandsOfValheim
         public static readonly Color LeatherBlackColor   = new Color(0.07f, 0.07f, 0.09f, 1.0f);
         public static readonly Color LeatherEmission     = new Color(0.02f, 0.01f, 0.04f);
         public static readonly Color LoinclothWhiteColor = new Color(0.95f, 0.94f, 0.98f, 1.0f);
-        public static readonly Color LoinclothEmission   = new Color(0.06f, 0.05f, 0.08f);
+        public static readonly Color LoinclothEmission   = new Color(0.02f, 0.02f, 0.03f);
 
         private static Material s_goldMaterial;
         private static Material s_scarfMaterial;
@@ -184,7 +184,7 @@ namespace StandsOfValheim
             float measuredPalmLen = middleBone != null
                 ? Vector3.Distance(hand.position, middleBone.position) / scale
                 : 0.085f;
-            float fistLength = Mathf.Clamp(measuredPalmLen * 2.0f, 0.145f, 0.195f);
+            float fistLength = Mathf.Clamp(measuredPalmLen * 2.35f, 0.175f, 0.235f);
 
             Quaternion handWorldRot = Quaternion.LookRotation(forwardWorld, upHint);
             var gloveGo = CreateGearObject(namePrefix + "_Fist", BuildGloveFistMesh(fistLength), GetLeatherBlackMaterial());
@@ -199,7 +199,7 @@ namespace StandsOfValheim
                 armFwd.Normalize();
 
                 Quaternion cuffWorldRot = Quaternion.LookRotation(armFwd, armAxis);
-                var cuffGo = CreateGearObject(namePrefix + "_Cuff", BuildWristCuffMesh(0.115f), GetLeatherBlackMaterial());
+                var cuffGo = CreateGearObject(namePrefix + "_Cuff", BuildWristCuffMesh(0.135f), GetLeatherBlackMaterial());
                 PlaceAnchoredPiece(visual, cuffGo, lowerArm, hand.position, cuffWorldRot);
             }
         }
@@ -229,7 +229,7 @@ namespace StandsOfValheim
 
             float footLen = toeVec.magnitude / scale;
             Vector3 footFwd = toeVec.sqrMagnitude > 0.0001f ? toeVec.normalized : visual.transform.forward;
-            float toeTipZ = Mathf.Clamp(footLen + 0.082f, 0.20f, 0.26f);
+            float toeTipZ = Mathf.Clamp(footLen + 0.105f, 0.24f, 0.29f);
             float ankleHeight = Mathf.Clamp(visual.transform.InverseTransformPoint(foot.position).y, 0.065f, 0.130f);
 
             Quaternion footRot = Quaternion.LookRotation(footFwd, visual.transform.up);
@@ -686,14 +686,14 @@ namespace StandsOfValheim
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
-            int segs = 10;
+            int segs = 12;
             var rings = new List<Vector3[]>
             {
-                CreateEllipseRing(new Vector3(0f, 0f, -0.015f), Vector3.right, Vector3.up, 0.056f, 0.048f, segs),
-                CreateEllipseRing(new Vector3(0f, 0.004f, fistLength * 0.28f), Vector3.right, Vector3.up, 0.062f, 0.052f, segs),
-                CreateEllipseRing(new Vector3(0f, 0.005f, fistLength * 0.56f), Vector3.right, Vector3.up, 0.065f, 0.056f, segs),
-                CreateEllipseRing(new Vector3(0f, 0.002f, fistLength * 0.84f), Vector3.right, Vector3.up, 0.058f, 0.050f, segs),
-                CreateEllipseRing(new Vector3(0f, -0.002f, fistLength), Vector3.right, Vector3.up, 0.038f, 0.034f, segs),
+                CreateEllipseRing(new Vector3(0f, 0f, -0.040f),              Vector3.right, Vector3.up, 0.074f, 0.066f, segs),
+                CreateEllipseRing(new Vector3(0f, 0.004f, fistLength * 0.24f), Vector3.right, Vector3.up, 0.084f, 0.076f, segs),
+                CreateEllipseRing(new Vector3(0f, 0.005f, fistLength * 0.54f), Vector3.right, Vector3.up, 0.086f, 0.078f, segs),
+                CreateEllipseRing(new Vector3(0f, 0.002f, fistLength * 0.82f), Vector3.right, Vector3.up, 0.076f, 0.070f, segs),
+                CreateEllipseRing(new Vector3(0f, -0.002f, fistLength),        Vector3.right, Vector3.up, 0.052f, 0.046f, segs),
             };
             AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
 
@@ -705,13 +705,13 @@ namespace StandsOfValheim
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
-            int segs = 10;
+            int segs = 12;
             var rings = new List<Vector3[]>
             {
-                CreateEllipseRing(new Vector3(0f,  0.015f, 0f), Vector3.right, Vector3.forward, 0.060f, 0.056f, segs),
-                CreateEllipseRing(new Vector3(0f, -length * 0.55f, 0f), Vector3.right, Vector3.forward, 0.066f, 0.060f, segs),
-                CreateEllipseRing(new Vector3(0f, -length * 0.90f, 0f), Vector3.right, Vector3.forward, 0.072f, 0.066f, segs),
-                CreateEllipseRing(new Vector3(0f, -length, 0f), Vector3.right, Vector3.forward, 0.067f, 0.062f, segs),
+                CreateEllipseRing(new Vector3(0f,  0.032f, 0f),          Vector3.right, Vector3.forward, 0.074f, 0.070f, segs),
+                CreateEllipseRing(new Vector3(0f, -length * 0.45f, 0f),  Vector3.right, Vector3.forward, 0.082f, 0.076f, segs),
+                CreateEllipseRing(new Vector3(0f, -length * 0.86f, 0f),  Vector3.right, Vector3.forward, 0.088f, 0.082f, segs),
+                CreateEllipseRing(new Vector3(0f, -length, 0f),          Vector3.right, Vector3.forward, 0.082f, 0.076f, segs),
             };
             AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
 
@@ -723,15 +723,15 @@ namespace StandsOfValheim
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
-            int segs = 10;
+            int segs = 12;
             var rings = new List<Vector3[]>
             {
-                CreateEllipseRing(new Vector3(0f, -0.025f, 0f), Vector3.right, Vector3.forward, 0.062f, 0.070f, segs),
-                CreateEllipseRing(new Vector3(0f, height * 0.25f, -0.002f), Vector3.right, Vector3.forward, 0.068f, 0.076f, segs),
-                CreateEllipseRing(new Vector3(0f, height * 0.62f, -0.008f), Vector3.right, Vector3.forward, 0.082f, 0.092f, segs),
-                CreateEllipseRing(new Vector3(0f, height * 0.88f, -0.004f), Vector3.right, Vector3.forward, 0.079f, 0.088f, segs),
-                CreateEllipseRing(new Vector3(0f, height * 0.96f, 0f), Vector3.right, Vector3.forward, 0.088f, 0.096f, segs),
-                CreateEllipseRing(new Vector3(0f, height, 0f), Vector3.right, Vector3.forward, 0.082f, 0.090f, segs),
+                CreateEllipseRing(new Vector3(0f, -0.048f, 0f),          Vector3.right, Vector3.forward, 0.078f, 0.086f, segs),
+                CreateEllipseRing(new Vector3(0f, height * 0.25f, -0.002f), Vector3.right, Vector3.forward, 0.086f, 0.094f, segs),
+                CreateEllipseRing(new Vector3(0f, height * 0.62f, -0.008f), Vector3.right, Vector3.forward, 0.100f, 0.112f, segs),
+                CreateEllipseRing(new Vector3(0f, height * 0.88f, -0.004f), Vector3.right, Vector3.forward, 0.098f, 0.108f, segs),
+                CreateEllipseRing(new Vector3(0f, height * 0.96f, 0f),      Vector3.right, Vector3.forward, 0.106f, 0.115f, segs),
+                CreateEllipseRing(new Vector3(0f, height, 0f),              Vector3.right, Vector3.forward, 0.100f, 0.108f, segs),
             };
             AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
 
@@ -743,20 +743,20 @@ namespace StandsOfValheim
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
-            float soleY = -(ankleHeight + 0.006f);
+            float soleY = -(ankleHeight + 0.018f);
             float toeSoleY = soleY + 0.004f;
 
-            // Build boot foot profile along Z axis from heel (-0.075) to rounded armored toe cap (+toeTipZ)
+            // Oversized armored combat boot profile covering heel, sole, arch, outer foot rim, and toes cleanly
             var stations = new (float z, float yBottom, float yTop, float halfW)[]
             {
-                (-0.075f,          soleY,    0.032f, 0.054f), // Heel back
-                (-0.015f,          soleY,    0.058f, 0.064f), // Ankle / arch
-                (toeTipZ * 0.38f,  soleY,    0.030f, 0.066f), // Instep / bridge
-                (toeTipZ * 0.76f,  soleY,   -0.004f, 0.064f), // Ball of foot
-                (toeTipZ,          toeSoleY,-0.026f, 0.045f), // Toe box tip
+                (-0.095f,          soleY,    0.055f, 0.072f), // Heel back
+                (-0.015f,          soleY,    0.080f, 0.084f), // Ankle / arch
+                (toeTipZ * 0.36f,  soleY,    0.054f, 0.086f), // Instep / bridge
+                (toeTipZ * 0.74f,  soleY,    0.026f, 0.084f), // Ball of foot
+                (toeTipZ,          toeSoleY,-0.002f, 0.062f), // Armored toe box tip
             };
 
-            int segs = 10;
+            int segs = 12;
             var rings = new List<Vector3[]>();
             foreach (var st in stations)
             {
@@ -775,62 +775,86 @@ namespace StandsOfValheim
             var tris = new List<int>();
 
             float waistY = Mathf.Clamp(hipToSpine * 0.54f, 0.048f, 0.088f);
-            float waistRx = halfHipSpan + 0.084f;
-            float hipRx = halfHipSpan + 0.090f;
-            float flapDrop = Mathf.Clamp(thighLen * 0.78f, 0.27f, 0.35f);
+            float flapDrop = Mathf.Clamp(thighLen * 0.80f, 0.28f, 0.36f);
 
-            // 1. Two-layer folded white waist sash wrapping snugly around hips/pelvis
-            AppendWaistFoldLoop(verts, tris, waistRx, rz: 0.136f, zOffset: -0.006f, baseY: waistY + 0.024f, frontDip: 0.014f, rHoriz: 0.017f, rVert: 0.026f);
-            AppendWaistFoldLoop(verts, tris, hipRx,   rz: 0.142f, zOffset: -0.008f, baseY: waistY - 0.024f, frontDip: 0.018f, rHoriz: 0.019f, rVert: 0.036f);
+            // 1. Full 360-degree wrapped hip skirt/briefs nested cleanly under StandBelt and covering Valheim's default underwear
+            AppendHipSkirtWrap(verts, tris, halfHipSpan, waistY);
 
-            // 2. Front folded sash overlap band where the front apron anchors
-            var sashTieStations = new (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[]
-            {
-                (waistY + 0.030f, 0.144f, 0.092f, 0.010f, -0.026f, 0.000f),
-                (waistY + 0.002f, 0.152f, 0.100f, 0.012f, -0.026f, 0.000f),
-                (waistY - 0.026f, 0.150f, 0.096f, 0.010f, -0.024f, 0.000f),
-            };
-            AppendClothPanelStrip(verts, tris, sashTieStations, arcSteps: 7, faceDir: +1f, pleatAmp: 0.002f);
-
-            // 3. Sculpted Front Loincloth Panel draping cleanly in front of thighs with V-point hem
+            // 2. Sculpted Front Loincloth Panel (wider & prouder so pelvis/underwear never poke through)
             var frontApron = new (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[]
             {
-                (waistY + 0.010f,   0.146f, 0.088f, 0.008f, -0.024f, 0.000f),
-                (waistY - 0.038f,   0.154f, 0.096f, 0.009f, -0.022f, 0.000f),
-                (-0.040f,           0.160f, 0.100f, 0.009f, -0.018f, 0.000f),
-                (-flapDrop * 0.36f, 0.156f, 0.092f, 0.008f, -0.014f, 0.004f),
-                (-flapDrop * 0.68f, 0.154f, 0.086f, 0.007f, -0.010f, 0.010f),
-                (-flapDrop * 0.90f, 0.160f, 0.094f, 0.006f, -0.008f, 0.018f),
-                (-flapDrop,         0.164f, 0.082f, 0.005f, -0.006f, 0.028f),
+                (waistY + 0.016f,   0.156f, 0.126f, 0.010f, -0.016f, 0.000f),
+                (waistY - 0.032f,   0.178f, 0.144f, 0.011f, -0.014f, 0.000f),
+                (-0.045f,           0.186f, 0.152f, 0.011f, -0.012f, 0.000f),
+                (-flapDrop * 0.36f, 0.184f, 0.142f, 0.010f, -0.010f, 0.005f),
+                (-flapDrop * 0.68f, 0.182f, 0.132f, 0.009f, -0.008f, 0.012f),
+                (-flapDrop * 0.90f, 0.186f, 0.138f, 0.007f, -0.006f, 0.020f),
+                (-flapDrop,         0.190f, 0.124f, 0.006f, -0.004f, 0.030f),
             };
-            AppendClothPanelStrip(verts, tris, frontApron, arcSteps: 7, faceDir: +1f, pleatAmp: 0.0035f);
+            AppendClothPanelStrip(verts, tris, frontApron, arcSteps: 9, faceDir: +1f, pleatAmp: 0.004f);
 
-            // 4. Symmetric Back Loincloth Panel clearing glutes and draping behind upper thighs
+            // 3. Symmetric Back Loincloth Panel clearing glutes and covering rear underwear
             var backApron = new (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[]
             {
-                (waistY + 0.010f,   -0.148f, 0.090f, 0.008f, 0.024f, 0.000f),
-                (waistY - 0.038f,   -0.160f, 0.098f, 0.009f, 0.022f, 0.000f),
-                (-0.045f,           -0.168f, 0.104f, 0.009f, 0.018f, 0.000f),
-                (-flapDrop * 0.36f, -0.162f, 0.094f, 0.008f, 0.014f, 0.004f),
-                (-flapDrop * 0.68f, -0.158f, 0.088f, 0.007f, 0.010f, 0.010f),
-                (-flapDrop * 0.90f, -0.164f, 0.096f, 0.006f, 0.008f, 0.018f),
-                (-flapDrop,         -0.168f, 0.084f, 0.005f, 0.006f, 0.026f),
+                (waistY + 0.016f,   -0.158f, 0.134f, 0.010f, 0.016f, 0.000f),
+                (waistY - 0.032f,   -0.184f, 0.150f, 0.011f, 0.014f, 0.000f),
+                (-0.048f,           -0.194f, 0.158f, 0.011f, 0.012f, 0.000f),
+                (-flapDrop * 0.36f, -0.188f, 0.148f, 0.010f, 0.010f, 0.005f),
+                (-flapDrop * 0.68f, -0.184f, 0.138f, 0.009f, 0.008f, 0.012f),
+                (-flapDrop * 0.90f, -0.188f, 0.142f, 0.007f, 0.006f, 0.020f),
+                (-flapDrop,         -0.192f, 0.128f, 0.006f, 0.004f, 0.028f),
             };
-            AppendClothPanelStrip(verts, tris, backApron, arcSteps: 7, faceDir: -1f, pleatAmp: 0.0035f);
+            AppendClothPanelStrip(verts, tris, backApron, arcSteps: 9, faceDir: -1f, pleatAmp: 0.004f);
 
-            // 5. Center crotch under-band joining front & back aprons neatly between inner thighs
-            float underHalfW = Mathf.Min(halfHipSpan * 0.48f, 0.046f);
+            // 4. Broad under-crotch cloth bridge joining front & back wraps seamlessly between inner thighs
+            float underHalfW = Mathf.Clamp(halfHipSpan * 0.70f, 0.056f, 0.074f);
             var underBand = new List<Vector3[]>
             {
-                CreateEllipseRing(new Vector3(0f, -0.020f,  0.134f), Vector3.right, new Vector3(0f, 0.7f, -0.7f).normalized, underHalfW * 1.25f, 0.011f, 8),
-                CreateEllipseRing(new Vector3(0f, -0.062f,  0.065f), Vector3.right, new Vector3(0f, 0.9f, -0.4f).normalized, underHalfW,         0.011f, 8),
-                CreateEllipseRing(new Vector3(0f, -0.074f, -0.005f), Vector3.right, Vector3.up,                              underHalfW * 0.85f, 0.011f, 8),
-                CreateEllipseRing(new Vector3(0f, -0.064f, -0.068f), Vector3.right, new Vector3(0f, 0.9f,  0.4f).normalized, underHalfW,         0.011f, 8),
-                CreateEllipseRing(new Vector3(0f, -0.020f, -0.142f), Vector3.right, new Vector3(0f, 0.7f,  0.7f).normalized, underHalfW * 1.28f, 0.011f, 8),
+                CreateEllipseRing(new Vector3(0f, -0.022f,  0.155f), Vector3.right, new Vector3(0f, 0.7f, -0.7f).normalized, underHalfW * 1.35f, 0.015f, 10),
+                CreateEllipseRing(new Vector3(0f, -0.078f,  0.075f), Vector3.right, new Vector3(0f, 0.9f, -0.4f).normalized, underHalfW,         0.015f, 10),
+                CreateEllipseRing(new Vector3(0f, -0.092f, -0.005f), Vector3.right, Vector3.up,                              underHalfW * 0.92f, 0.015f, 10),
+                CreateEllipseRing(new Vector3(0f, -0.080f, -0.078f), Vector3.right, new Vector3(0f, 0.9f,  0.4f).normalized, underHalfW,         0.015f, 10),
+                CreateEllipseRing(new Vector3(0f, -0.022f, -0.162f), Vector3.right, new Vector3(0f, 0.7f,  0.7f).normalized, underHalfW * 1.38f, 0.015f, 10),
             };
             AppendLoftedRings(verts, tris, underBand, capStart: true, capEnd: true);
 
             return FinalizeMesh("StandLoinclothMesh", verts, tris, uvScale: 3.5f);
+        }
+
+        private static void AppendHipSkirtWrap(List<Vector3> verts, List<int> tris, float halfHipSpan, float waistY)
+        {
+            const int segs = 28;
+            var rings = new List<Vector3[]>(segs);
+
+            float rxTop = halfHipSpan + 0.096f;
+            float rzTop = 0.148f;
+            float rxMid = halfHipSpan + 0.118f;
+            float rzMid = 0.172f;
+            float rxBot = halfHipSpan + 0.122f;
+            float rzBot = 0.178f;
+
+            for (int i = 0; i < segs; i++)
+            {
+                float theta = (i / (float)segs) * Mathf.PI * 2f;
+                float sin = Mathf.Sin(theta);
+                float cos = Mathf.Cos(theta);
+
+                float yTop = (waistY + 0.028f) - 0.018f * cos;
+                float yMid = 0.005f;
+                float yBot = -0.105f - 0.026f * Mathf.Abs(cos);
+
+                Vector3 pTopOuter = new Vector3(rxTop * sin, yTop, -0.004f + rzTop * cos);
+                Vector3 pMidOuter = new Vector3(rxMid * sin, yMid, -0.004f + rzMid * cos);
+                Vector3 pBotOuter = new Vector3(rxBot * sin, yBot, -0.004f + rzBot * cos);
+
+                Vector3 pTopInner = new Vector3((rxTop - 0.024f) * sin, yTop, -0.004f + (rzTop - 0.024f) * cos);
+                Vector3 pMidInner = new Vector3((rxMid - 0.024f) * sin, yMid, -0.004f + (rzMid - 0.024f) * cos);
+                Vector3 pBotInner = new Vector3((rxBot - 0.024f) * sin, yBot, -0.004f + (rzBot - 0.024f) * cos);
+
+                rings.Add(new[] { pTopOuter, pMidOuter, pBotOuter, pBotInner, pMidInner, pTopInner });
+            }
+
+            AppendClosedLoopTorus(verts, tris, rings);
         }
 
         private static Mesh BuildGoldBeltMesh(float halfHipSpan, float hipToSpine)
@@ -909,36 +933,6 @@ namespace StandsOfValheim
             AppendClothPanelStrip(verts, tris, lowerWing, arcSteps: 5, faceDir: +1f, pleatAmp: 0.002f);
 
             return FinalizeMesh("StandKneePadMesh", verts, tris, uvScale: 5.5f);
-        }
-
-        private static void AppendWaistFoldLoop(
-            List<Vector3> verts,
-            List<int> tris,
-            float rx,
-            float rz,
-            float zOffset,
-            float baseY,
-            float frontDip,
-            float rHoriz,
-            float rVert)
-        {
-            const int segs = 24;
-            const int tubeSegs = 8;
-            var rings = new List<Vector3[]>(segs);
-
-            for (int i = 0; i < segs; i++)
-            {
-                float theta = (i / (float)segs) * Mathf.PI * 2f;
-                float cx = rx * Mathf.Sin(theta);
-                float cz = zOffset + rz * Mathf.Cos(theta);
-                float cy = baseY - frontDip * Mathf.Cos(theta) + 0.004f * Mathf.Cos(theta * 3f);
-
-                Vector3 center = new Vector3(cx, cy, cz);
-                Vector3 radialOut = new Vector3(Mathf.Sin(theta), 0f, Mathf.Cos(theta)).normalized;
-                rings.Add(CreateEllipseRing(center, radialOut, Vector3.up, rHoriz, rVert, tubeSegs));
-            }
-
-            AppendClosedLoopTorus(verts, tris, rings);
         }
 
         private static void AppendClothPanelStrip(
