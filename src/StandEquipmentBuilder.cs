@@ -19,8 +19,8 @@ namespace StandsOfValheim
         public static readonly Color ScarfEmission       = new Color(0.08f, 0.01f, 0.01f);
         public static readonly Color LeatherBlackColor   = new Color(0.07f, 0.07f, 0.09f, 1.0f);
         public static readonly Color LeatherEmission     = new Color(0.02f, 0.01f, 0.04f);
-        public static readonly Color LoinclothWhiteColor = new Color(0.95f, 0.94f, 0.98f, 1.0f);
-        public static readonly Color LoinclothEmission   = new Color(0.02f, 0.02f, 0.03f);
+        public static readonly Color LoinclothWhiteColor = new Color(0.68f, 0.68f, 0.72f, 1.0f);
+        public static readonly Color LoinclothEmission   = Color.black;
 
         private static Material s_goldMaterial;
         private static Material s_scarfMaterial;
@@ -393,7 +393,7 @@ namespace StandsOfValheim
         {
             if (s_loinclothMaterial == null)
             {
-                s_loinclothMaterial = CreateCrispMaterial(LoinclothWhiteColor, metallic: 0.02f, glossiness: 0.18f, LoinclothEmission);
+                s_loinclothMaterial = CreateCrispMaterial(LoinclothWhiteColor, metallic: 0.0f, glossiness: 0.08f, LoinclothEmission);
             }
             return s_loinclothMaterial;
         }
