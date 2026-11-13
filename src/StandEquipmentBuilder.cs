@@ -340,44 +340,85 @@ namespace StandsOfValheim
 
         private static Shader FindValheimOpaqueShader()
         {
-            // Never pick Unity's stripped "Standard" or "Diffuse" shaders in Valheim's Vulkan build.
+            // Never pick Unity's stripped "Standard", "Custom/Player" (cutout skin), or any particle/transparent shader.
             string[] preferred = { "Custom/Creature", "Custom/Piece" };
-            foreach (var name in preferred)
+
+            // 1. Check loaded Valheim shaders in memory and Shader.Find first
+            foreach (var targetName in preferred)
             {
-                var sh = Shader.Find(name);
-                if (sh != null && sh.isSupported)
+                var sh = Shader.Find(targetName);
+                if (sh != null && sh.isSupported) return sh;
+            }
+
+            var loadedShaders = Resources.FindObjectsOfTypeAll<Shader>();
+            foreach (var targetName in preferred)
+            {
+                foreach (var sh in loadedShaders)
                 {
-                    return sh;
+                    if (sh != null && sh.isSupported && sh.name == targetName)
+                    {
+                        return sh;
+                    }
                 }
             }
 
+            // 2. Inspect solid MeshRenderer/SkinnedMeshRenderer materials under equipment "attach" children
             if (ObjectDB.instance != null)
             {
-                string[] itemPrefabs = { "ArmorBronzeChest", "HelmetDverger", "ShieldBronzeBuckler", "ArmorIronChest", "CapeLinen" };
+                string[] itemPrefabs = { "HelmetDverger", "ShieldBronzeBuckler", "ArmorBronzeChest", "ArmorIronChest", "CapeLinen" };
                 foreach (var prefabName in itemPrefabs)
                 {
                     var prefab = ObjectDB.instance.GetItemPrefab(prefabName);
                     if (prefab == null) continue;
-                    foreach (var r in prefab.GetComponentsInChildren<Renderer>(true))
+
+                    for (int c = 0; c < prefab.transform.childCount; c++)
                     {
-                        var sh = r != null && r.sharedMaterial != null ? r.sharedMaterial.shader : null;
-                        if (sh != null && sh.isSupported && sh.name != "Standard" && sh.name != "Custom/Player")
+                        Transform child = prefab.transform.GetChild(c);
+                        if (!child.name.StartsWith("attach")) continue;
+
+                        foreach (var r in child.GetComponentsInChildren<Renderer>(true))
                         {
+                            if (!(r is MeshRenderer || r is SkinnedMeshRenderer)) continue;
+                            var mat = r.sharedMaterial;
+                            var sh = mat != null ? mat.shader : null;
+                            if (!IsValidOpaqueShader(sh, mat)) continue;
                             return sh;
                         }
                     }
                 }
             }
 
-            foreach (var sh in Resources.FindObjectsOfTypeAll<Shader>())
-            {
-                if (sh != null && sh.isSupported && (sh.name == "Custom/Creature" || sh.name == "Custom/Piece"))
-                {
-                    return sh;
-                }
-            }
-
             return null;
+        }
+
+        private static bool IsValidOpaqueShader(Shader sh, Material mat)
+        {
+            if (sh == null || !sh.isSupported) return false;
+            string n = sh.name ?? string.Empty;
+            if (n == "Standard" || n == "Custom/Player") return false;
+            if (n.IndexOf("Particle", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (n.IndexOf("Transparent", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (n.IndexOf("Additive", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (n.IndexOf("Alpha", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (n.IndexOf("Sprites", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (n.IndexOf("Unlit", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (n.StartsWith("Hidden/", StringComparison.OrdinalIgnoreCase)) return false;
+            if (n.StartsWith("UI/", StringComparison.OrdinalIgnoreCase)) return false;
+            if (mat != null && mat.renderQueue >= 2500) return false;
+            return true;
+        }
+
+        private static Texture2D CreateSolidTexture(Color color)
+        {
+            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+            {
+                name = $"StandSolidTex_{color.r:F2}_{color.g:F2}_{color.b:F2}",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Point
+            };
+            tex.SetPixel(0, 0, color);
+            tex.Apply(false, false);
+            return tex;
         }
 
         private static Material CreateCrispMaterial(Color color, float metallic, float glossiness, Color emission)
@@ -397,8 +438,11 @@ namespace StandsOfValheim
 
             if (mat != null)
             {
-                mat.mainTexture = Texture2D.whiteTexture;
-                ApplyMaterialProperties(mat, color, metallic, glossiness, emission);
+                mat.renderQueue = -1;
+                mat.mainTexture = CreateSolidTexture(color);
+                // Texture already carries exact albedo tint; keep _Color white so both _MainTex*_Color
+                // shaders and texture-only shaders render vibrant true colors (never washed white).
+                ApplyMaterialProperties(mat, Color.white, metallic, glossiness, emission);
             }
             return mat;
         }
@@ -407,6 +451,7 @@ namespace StandsOfValheim
         {
             mat.color = color;
             if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", color);
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
             if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", glossiness);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", glossiness);

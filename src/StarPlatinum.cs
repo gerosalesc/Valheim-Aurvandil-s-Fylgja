@@ -175,7 +175,7 @@ namespace StandsOfValheim
 
             if (headBone != null)
             {
-                EquipHeadPiece("HelmetDverger", headBone);
+                EquipHeadPiece("HelmetDverger", headBone, visual, ownerVis);
                 EquipHair(bodyModel, headBone, visual);
             }
 
@@ -226,7 +226,7 @@ namespace StandsOfValheim
             }
         }
 
-        private static GameObject EquipHeadPiece(string itemName, Transform headBone)
+        private static GameObject EquipHeadPiece(string itemName, Transform headBone, GameObject visual, VisEquipment ownerVis)
         {
             if (headBone == null || ObjectDB.instance == null) return null;
             GameObject itemPrefab = ObjectDB.instance.GetItemPrefab(itemName);
@@ -248,18 +248,54 @@ namespace StandsOfValheim
             }
             if (attachSource == null) return null;
 
-            Transform equipOffset = itemPrefab.transform.Find("equipoffset");
-            Vector3 localPos = equipOffset != null ? equipOffset.localPosition : Vector3.zero;
-            Quaternion localRot = equipOffset != null ? equipOffset.localRotation : Quaternion.identity;
+            // Attach to Valheim's exact Helmet mount point ("Helmet_attach") inside our cloned visual
+            // when available, and explicitly normalize scale against Armature's 100x bone scaling.
+            Transform attachParent = null;
+            VisEquipment refVis = ownerVis ?? (Game.instance != null && Game.instance.m_playerPrefab != null
+                ? Game.instance.m_playerPrefab.GetComponent<VisEquipment>()
+                : null);
+            if (refVis != null && refVis.m_helmet != null && visual != null)
+            {
+                attachParent = Utils.FindChild(visual.transform, refVis.m_helmet.name);
+            }
+            if (attachParent == null)
+            {
+                attachParent = headBone;
+            }
 
-            GameObject attached = UnityEngine.Object.Instantiate(attachSource.gameObject, headBone);
+            Transform equipOffset = itemPrefab.transform.Find("equipoffset");
+            Vector3 offsetPos = equipOffset != null ? equipOffset.position : Vector3.zero;
+            Quaternion offsetRot = equipOffset != null ? equipOffset.rotation : Quaternion.identity;
+
+            GameObject attached = UnityEngine.Object.Instantiate(attachSource.gameObject);
             attached.name = "StandCirclet";
             attached.SetActive(true);
-            attached.transform.localPosition = localPos;
-            attached.transform.localRotation = localRot;
-            attached.transform.localScale *= 1.10f;
+            attached.transform.SetParent(attachParent, false);
 
-            // Keep forehead jewel visual active while removing headlamp SpotLights
+            Vector3 visualScale = visual != null ? visual.transform.lossyScale : Vector3.one;
+            Vector3 parentScale = attachParent.lossyScale;
+
+            // Match VisEquipment's Helmet offset in meters cleanly even if attached to a 100x Armature bone
+            float posNormX = Mathf.Abs(parentScale.x) > 10f ? visualScale.x / parentScale.x : 1f;
+            float posNormY = Mathf.Abs(parentScale.y) > 10f ? visualScale.y / parentScale.y : 1f;
+            float posNormZ = Mathf.Abs(parentScale.z) > 10f ? visualScale.z / parentScale.z : 1f;
+            attached.transform.localPosition = new Vector3(offsetPos.x * posNormX, offsetPos.y * posNormY, offsetPos.z * posNormZ);
+            attached.transform.localRotation = offsetRot;
+
+            // Normalize world scale to attachSource * visualScale * 1.05f (clearance over Painter Curls)
+            const float circletClearance = 1.05f;
+            Vector3 desiredWorldScale = new Vector3(
+                attachSource.localScale.x * visualScale.x * circletClearance,
+                attachSource.localScale.y * visualScale.y * circletClearance,
+                attachSource.localScale.z * visualScale.z * circletClearance);
+            attached.transform.localScale = new Vector3(
+                Mathf.Abs(parentScale.x) > 0.0001f ? desiredWorldScale.x / parentScale.x : attachSource.localScale.x,
+                Mathf.Abs(parentScale.y) > 0.0001f ? desiredWorldScale.y / parentScale.y : attachSource.localScale.y,
+                Mathf.Abs(parentScale.z) > 0.0001f ? desiredWorldScale.z / parentScale.z : attachSource.localScale.z);
+
+            Plugin.Log?.LogInfo($"StarPlatinum: Equipped StandCirclet on '{attachParent.name}' (parentScale={parentScale}, localScale={attached.transform.localScale}, worldScale={attached.transform.lossyScale}).");
+
+            // Keep forehead jewel visual active while removing headlamp SpotLights and stray colliders
             Transform equipedChild = attached.transform.Find("equiped");
             if (equipedChild != null)
             {
@@ -270,15 +306,23 @@ namespace StandsOfValheim
                 lightComp.enabled = false;
                 UnityEngine.Object.Destroy(lightComp);
             }
+            foreach (var col in attached.GetComponentsInChildren<Collider>(true))
+            {
+                col.enabled = false;
+                UnityEngine.Object.Destroy(col);
+            }
 
             foreach (var r in attached.GetComponentsInChildren<Renderer>(true))
             {
-                if (r.materials != null)
+                if (r == null || !(r is MeshRenderer || r is SkinnedMeshRenderer)) continue;
+                var mats = r.materials;
+                if (mats != null)
                 {
-                    foreach (var mat in r.materials)
+                    foreach (var mat in mats)
                     {
                         StandEquipmentBuilder.ApplyGoldTint(mat);
                     }
+                    r.materials = mats;
                 }
             }
 
