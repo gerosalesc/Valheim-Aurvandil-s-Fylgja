@@ -11,9 +11,9 @@ namespace StandsOfValheim
     /// </summary>
     internal static class StarPlatinum
     {
-        private static readonly Color StandPurple = new Color(0.60f, 0.20f, 0.90f, 0.45f);
-        private static readonly Color HairColor   = new Color(0f, 0f, 0f, 0.95f);
-        private static readonly Color EmissionGlow = new Color(0.40f, 0.15f, 0.75f) * 0.45f;
+        private static readonly Color StandPurple  = new Color(0.58f, 0.20f, 0.92f, 1.0f);
+        private static readonly Color HairColor    = new Color(0.02f, 0.02f, 0.03f, 1.0f);
+        private static readonly Color EmissionGlow = new Color(0.30f, 0.10f, 0.62f);
 
         public static GameObject Build(Player owner)
         {
@@ -257,7 +257,7 @@ namespace StandsOfValheim
             attached.SetActive(true);
             attached.transform.localPosition = localPos;
             attached.transform.localRotation = localRot;
-            attached.transform.localScale *= 1.06f;
+            attached.transform.localScale *= 1.10f;
 
             // Keep forehead jewel visual active while removing headlamp SpotLights
             Transform equipedChild = attached.transform.Find("equiped");
@@ -512,14 +512,7 @@ namespace StandsOfValheim
                     if (isHair)
                     {
                         // Star Platinum's black hair: Crisp, opaque, jet black mane
-                        mat.SetFloat("_Mode", 0f); // Opaque
-                        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
-                        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
-                        mat.SetInt("_ZWrite", 1);
-                        mat.DisableKeyword("_ALPHABLEND_ON");
-                        mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                         mat.renderQueue = -1;
-
                         mat.color = HairColor;
                         if (mat.HasProperty("_SkinColor")) mat.SetColor("_SkinColor", HairColor);
                         if (mat.HasProperty("_Color")) mat.SetColor("_Color", HairColor);
@@ -532,23 +525,18 @@ namespace StandsOfValheim
                         continue;
                     }
 
-                    // Stand Body (Spectral Purple, Translucent)
-                    mat.SetFloat("_Mode", 3f); // Transparent
-                    mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                    mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                    mat.SetInt("_ZWrite", 0);
-                    mat.DisableKeyword("_ALPHATEST_ON");
-                    mat.EnableKeyword("_ALPHABLEND_ON");
-                    mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-                    mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 15;
+                    // Stand Body: keep Custom/Player in its native opaque G-buffer queue with alpha 1.0
+                    // so Valheim's player cutout mask never shreds bare skin into holes.
+                    mat.renderQueue = -1;
+                    mat.color = StandPurple;
 
                     if (mat.HasProperty("_Color"))
                     {
                         Color c = mat.GetColor("_Color");
-                        c.r = Mathf.Lerp(c.r, StandPurple.r, 0.45f);
-                        c.g = Mathf.Lerp(c.g, StandPurple.g, 0.45f);
-                        c.b = Mathf.Lerp(c.b, StandPurple.b, 0.45f);
-                        c.a = 0.45f;
+                        c.r = Mathf.Lerp(c.r, StandPurple.r, 0.65f);
+                        c.g = Mathf.Lerp(c.g, StandPurple.g, 0.65f);
+                        c.b = Mathf.Lerp(c.b, StandPurple.b, 0.65f);
+                        c.a = 1.0f;
                         mat.SetColor("_Color", c);
                     }
 

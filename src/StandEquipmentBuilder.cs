@@ -73,7 +73,11 @@ namespace StandsOfValheim
 
             AttachLoincloth(visual, hips, spine, leftThigh, rightThigh, leftLowerLeg);
 
-            Plugin.Log?.LogInfo("StandEquipmentBuilder: Equipped golden shoulder pads, red scarf, white loincloth, black gloves, black boots, and golden circlet.");
+            if (Plugin.Log != null)
+            {
+                Vector3 sampleBoneScale = hips != null ? hips.lossyScale : visual.transform.lossyScale;
+                Plugin.Log.LogInfo($"StandEquipmentBuilder: Equipped outfit (visualScale={visual.transform.lossyScale}, boneScale={sampleBoneScale}).");
+            }
         }
 
         private static void AttachShoulderPad(GameObject visual, Transform upperArm, Transform lowerArm, Transform chest, bool isRight)
@@ -105,7 +109,7 @@ namespace StandsOfValheim
 
             // Anchor directly at upperArm shoulder joint; mesh curvature wraps flush over the deltoid cap
             var go = CreateGearObject(isRight ? "StandShoulderPad_R" : "StandShoulderPad_L", BuildShoulderPadMesh(), GetGoldMaterial());
-            PlaceAnchoredPiece(go, upperArm, upperArm.position, worldRot);
+            PlaceAnchoredPiece(visual, go, upperArm, upperArm.position, worldRot);
         }
 
         private static void AttachRedScarf(GameObject visual, Transform upperChest, Transform neckBone)
@@ -127,7 +131,7 @@ namespace StandsOfValheim
 
             Quaternion worldRot = Quaternion.LookRotation(visual.transform.forward, visual.transform.up);
             var go = CreateGearObject("StandScarf", BuildScarfMesh(), GetScarfMaterial());
-            PlaceAnchoredPiece(go, parent, neckAnchor, worldRot);
+            PlaceAnchoredPiece(visual, go, parent, neckAnchor, worldRot);
         }
 
         private static void AttachGlove(GameObject visual, Transform lowerArm, Transform hand, Transform middleBone, string namePrefix)
@@ -165,7 +169,7 @@ namespace StandsOfValheim
 
             Quaternion handWorldRot = Quaternion.LookRotation(forwardWorld, upHint);
             var gloveGo = CreateGearObject(namePrefix + "_Fist", BuildGloveFistMesh(fistLength), GetLeatherBlackMaterial());
-            PlaceAnchoredPiece(gloveGo, hand, hand.position, handWorldRot);
+            PlaceAnchoredPiece(visual, gloveGo, hand, hand.position, handWorldRot);
 
             // Forearm gauntlet wrist cuff overlapping cleanly at the wrist joint
             if (lowerArm != null)
@@ -177,7 +181,7 @@ namespace StandsOfValheim
 
                 Quaternion cuffWorldRot = Quaternion.LookRotation(armFwd, armAxis);
                 var cuffGo = CreateGearObject(namePrefix + "_Cuff", BuildWristCuffMesh(0.115f), GetLeatherBlackMaterial());
-                PlaceAnchoredPiece(cuffGo, lowerArm, hand.position, cuffWorldRot);
+                PlaceAnchoredPiece(visual, cuffGo, lowerArm, hand.position, cuffWorldRot);
             }
         }
 
@@ -197,7 +201,7 @@ namespace StandsOfValheim
             Quaternion shaftRot = Quaternion.LookRotation(shinFwd, shinUp);
             float shaftHeight = shinLen * 0.76f;
             var shaftGo = CreateGearObject(namePrefix + "_Shaft", BuildBootShaftMesh(shaftHeight), GetLeatherBlackMaterial());
-            PlaceAnchoredPiece(shaftGo, lowerLeg, foot.position, shaftRot);
+            PlaceAnchoredPiece(visual, shaftGo, lowerLeg, foot.position, shaftRot);
 
             // Boot foot & toe box on Foot (+Z forward toward toes, +Y up)
             Vector3 toeVec = toes != null
@@ -211,7 +215,7 @@ namespace StandsOfValheim
 
             Quaternion footRot = Quaternion.LookRotation(footFwd, visual.transform.up);
             var footGo = CreateGearObject(namePrefix + "_Foot", BuildBootFootMesh(toeTipZ, ankleHeight), GetLeatherBlackMaterial());
-            PlaceAnchoredPiece(footGo, foot, foot.position, footRot);
+            PlaceAnchoredPiece(visual, footGo, foot, foot.position, footRot);
         }
 
         private static void AttachLoincloth(
@@ -251,7 +255,7 @@ namespace StandsOfValheim
 
             Quaternion worldRot = Quaternion.LookRotation(visual.transform.forward, visual.transform.up);
             var go = CreateGearObject("StandLoincloth", BuildLoinclothMesh(halfHipSpan, hipToSpine, thighLen), GetLoinclothMaterial());
-            PlaceAnchoredPiece(go, parent, hipMid, worldRot);
+            PlaceAnchoredPiece(visual, go, parent, hipMid, worldRot);
         }
 
         private static float GetScaleFactor(GameObject visual)
@@ -272,12 +276,20 @@ namespace StandsOfValheim
             return go;
         }
 
-        private static void PlaceAnchoredPiece(GameObject piece, Transform parentBone, Vector3 worldPos, Quaternion worldRot)
+        private static void PlaceAnchoredPiece(GameObject visual, GameObject piece, Transform parentBone, Vector3 worldPos, Quaternion worldRot)
         {
             piece.transform.SetParent(parentBone, false);
             piece.transform.localPosition = parentBone.InverseTransformPoint(worldPos);
             piece.transform.localRotation = Quaternion.Inverse(parentBone.rotation) * worldRot;
-            piece.transform.localScale = Vector3.one;
+
+            // Valheim's Armature uses 100x Blender-FBX bone scaling; normalize localScale so
+            // our 1:1-meter meshes match visual.lossyScale instead of blowing up 100x.
+            Vector3 targetScale = visual.transform.lossyScale;
+            Vector3 boneScale = parentBone.lossyScale;
+            float sx = Mathf.Abs(boneScale.x) > 0.0001f ? targetScale.x / boneScale.x : 1f;
+            float sy = Mathf.Abs(boneScale.y) > 0.0001f ? targetScale.y / boneScale.y : 1f;
+            float sz = Mathf.Abs(boneScale.z) > 0.0001f ? targetScale.z / boneScale.z : 1f;
+            piece.transform.localScale = new Vector3(sx, sy, sz);
         }
 
         // ----------------------------------------------------------------------
@@ -323,57 +335,81 @@ namespace StandsOfValheim
         public static void ApplyGoldTint(Material mat)
         {
             if (mat == null) return;
-            SetOpaquePbr(mat, GoldArmorColor, metallic: 0.85f, glossiness: 0.72f, GoldEmission);
+            ApplyMaterialProperties(mat, GoldArmorColor, metallic: 0.85f, glossiness: 0.72f, new Color(0.42f, 0.28f, 0.03f));
+        }
+
+        private static Shader FindValheimOpaqueShader()
+        {
+            // Never pick Unity's stripped "Standard" or "Diffuse" shaders in Valheim's Vulkan build.
+            string[] preferred = { "Custom/Creature", "Custom/Piece" };
+            foreach (var name in preferred)
+            {
+                var sh = Shader.Find(name);
+                if (sh != null && sh.isSupported)
+                {
+                    return sh;
+                }
+            }
+
+            if (ObjectDB.instance != null)
+            {
+                string[] itemPrefabs = { "ArmorBronzeChest", "HelmetDverger", "ShieldBronzeBuckler", "ArmorIronChest", "CapeLinen" };
+                foreach (var prefabName in itemPrefabs)
+                {
+                    var prefab = ObjectDB.instance.GetItemPrefab(prefabName);
+                    if (prefab == null) continue;
+                    foreach (var r in prefab.GetComponentsInChildren<Renderer>(true))
+                    {
+                        var sh = r != null && r.sharedMaterial != null ? r.sharedMaterial.shader : null;
+                        if (sh != null && sh.isSupported && sh.name != "Standard" && sh.name != "Custom/Player")
+                        {
+                            return sh;
+                        }
+                    }
+                }
+            }
+
+            foreach (var sh in Resources.FindObjectsOfTypeAll<Shader>())
+            {
+                if (sh != null && sh.isSupported && (sh.name == "Custom/Creature" || sh.name == "Custom/Piece"))
+                {
+                    return sh;
+                }
+            }
+
+            return null;
         }
 
         private static Material CreateCrispMaterial(Color color, float metallic, float glossiness, Color emission)
         {
             Material mat = null;
-            var shader = Shader.Find("Standard") ?? Shader.Find("Custom/Creature");
+            Shader shader = FindValheimOpaqueShader();
             if (shader != null)
             {
                 mat = new Material(shader);
+                Plugin.Log?.LogInfo($"StandEquipmentBuilder: Creating equipment material using shader '{shader.name}'.");
             }
             else
             {
-                // Built-in Unity primitive guarantees a valid Standard PBR material
-                var temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                var r = temp.GetComponent<Renderer>();
-                if (r != null && r.sharedMaterial != null)
-                {
-                    mat = new Material(r.sharedMaterial);
-                }
-                UnityEngine.Object.Destroy(temp);
-            }
-
-            if (mat == null)
-            {
+                Plugin.Log?.LogWarning("StandEquipmentBuilder: Falling back to StandMaterialManager for equipment material.");
                 mat = StandMaterialManager.GetMaterial(color);
             }
 
             if (mat != null)
             {
                 mat.mainTexture = Texture2D.whiteTexture;
-                SetOpaquePbr(mat, color, metallic, glossiness, emission);
+                ApplyMaterialProperties(mat, color, metallic, glossiness, emission);
             }
             return mat;
         }
 
-        private static void SetOpaquePbr(Material mat, Color color, float metallic, float glossiness, Color emission)
+        private static void ApplyMaterialProperties(Material mat, Color color, float metallic, float glossiness, Color emission)
         {
-            mat.SetFloat("_Mode", 0f);
-            mat.SetInt("_SrcBlend", (int)BlendMode.One);
-            mat.SetInt("_DstBlend", (int)BlendMode.Zero);
-            mat.SetInt("_ZWrite", 1);
-            mat.DisableKeyword("_ALPHATEST_ON");
-            mat.DisableKeyword("_ALPHABLEND_ON");
-            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-            mat.renderQueue = -1;
-
             mat.color = color;
             if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
             if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", glossiness);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", glossiness);
             if (mat.HasProperty("_EmissionColor"))
             {
                 mat.SetColor("_EmissionColor", emission);
