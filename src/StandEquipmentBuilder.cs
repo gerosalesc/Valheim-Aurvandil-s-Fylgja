@@ -7,20 +7,20 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Builds Star Platinum's custom armor and accessories rigged onto the Stand's humanoid skeleton:
-    /// golden shoulder pads, wrapped crimson red scarf, white loincloth, black combat boots, black
-    /// gauntlets/gloves, and a golden forehead circlet, without heavy torso/leg armor covering his
-    /// purple musculature.
+    /// dark forged-gold shoulder pads, waist belt, knee pads, and circlet; crimson neck scarf;
+    /// white loincloth; and black combat boots and gloves.
     /// </summary>
     internal static class StandEquipmentBuilder
     {
-        public static readonly Color GoldArmorColor      = new Color(0.98f, 0.78f, 0.18f, 1.0f);
-        public static readonly Color GoldEmission        = new Color(0.32f, 0.22f, 0.02f);
-        public static readonly Color ScarfRedColor       = new Color(0.84f, 0.12f, 0.12f, 1.0f);
-        public static readonly Color ScarfEmission       = new Color(0.14f, 0.01f, 0.01f);
+        public static readonly Color GoldArmorColor      = new Color(0.62f, 0.41f, 0.10f, 1.0f);
+        public static readonly Color GoldCircletTint     = new Color(0.76f, 0.52f, 0.14f, 1.0f);
+        public static readonly Color GoldEmission        = new Color(0.025f, 0.015f, 0.002f);
+        public static readonly Color ScarfRedColor       = new Color(0.82f, 0.11f, 0.12f, 1.0f);
+        public static readonly Color ScarfEmission       = new Color(0.08f, 0.01f, 0.01f);
         public static readonly Color LeatherBlackColor   = new Color(0.07f, 0.07f, 0.09f, 1.0f);
         public static readonly Color LeatherEmission     = new Color(0.02f, 0.01f, 0.04f);
         public static readonly Color LoinclothWhiteColor = new Color(0.95f, 0.94f, 0.98f, 1.0f);
-        public static readonly Color LoinclothEmission   = new Color(0.08f, 0.07f, 0.11f);
+        public static readonly Color LoinclothEmission   = new Color(0.06f, 0.05f, 0.08f);
 
         private static Material s_goldMaterial;
         private static Material s_scarfMaterial;
@@ -42,8 +42,8 @@ namespace StandsOfValheim
             AttachShoulderPad(visual, leftUpperArm, leftLowerArm, upperChest, false);
             AttachShoulderPad(visual, rightUpperArm, rightLowerArm, upperChest, true);
 
-            // Wrapped Crimson Red Scarf around neck base & short upper-back tails (not a long cape)
-            AttachRedScarf(visual, upperChest, neckBone);
+            // Wrapped Crimson Red Scarf seated snugly around the neck
+            AttachRedScarf(visual, headBone, neckBone, upperChest);
 
             // Black Gloves & Wrist Cuffs
             Transform leftHand    = findBone(HumanBodyBones.LeftHand, "LeftHand");
@@ -54,7 +54,9 @@ namespace StandsOfValheim
             AttachGlove(visual, leftLowerArm, leftHand, leftMiddle, "StandGlove_L");
             AttachGlove(visual, rightLowerArm, rightHand, rightMiddle, "StandGlove_R");
 
-            // Black Boots (knee-high boot shaft on LowerLeg + foot/toe box on Foot)
+            // Black Boots & Golden Knee Pads
+            Transform leftThigh     = findBone(HumanBodyBones.LeftUpperLeg, "LeftUpLeg");
+            Transform rightThigh    = findBone(HumanBodyBones.RightUpperLeg, "RightUpLeg");
             Transform leftLowerLeg  = findBone(HumanBodyBones.LeftLowerLeg, "LeftLeg");
             Transform leftFoot      = findBone(HumanBodyBones.LeftFoot, "LeftFoot");
             Transform leftToes      = findBone(HumanBodyBones.LeftToes, "LeftToeBase");
@@ -65,13 +67,15 @@ namespace StandsOfValheim
             AttachBoot(visual, leftLowerLeg, leftFoot, leftToes, "StandBoot_L");
             AttachBoot(visual, rightLowerLeg, rightFoot, rightToes, "StandBoot_R");
 
-            // White Loincloth (wrapped waist sash + front & back panels anchored on Hips)
-            Transform hips       = findBone(HumanBodyBones.Hips, "Hips");
-            Transform spine      = findBone(HumanBodyBones.Spine, "Spine");
-            Transform leftThigh  = findBone(HumanBodyBones.LeftUpperLeg, "LeftUpLeg");
-            Transform rightThigh = findBone(HumanBodyBones.RightUpperLeg, "RightUpLeg");
+            AttachKneePad(visual, leftThigh, leftLowerLeg, leftFoot, "StandKneePad_L");
+            AttachKneePad(visual, rightThigh, rightLowerLeg, rightFoot, "StandKneePad_R");
+
+            // White Loincloth & Golden Waist Belt anchored together on Hips
+            Transform hips  = findBone(HumanBodyBones.Hips, "Hips");
+            Transform spine = findBone(HumanBodyBones.Spine, "Spine");
 
             AttachLoincloth(visual, hips, spine, leftThigh, rightThigh, leftLowerLeg);
+            AttachGoldBelt(visual, hips, spine, leftThigh, rightThigh);
 
             if (Plugin.Log != null)
             {
@@ -112,25 +116,40 @@ namespace StandsOfValheim
             PlaceAnchoredPiece(visual, go, upperArm, upperArm.position, worldRot);
         }
 
-        private static void AttachRedScarf(GameObject visual, Transform upperChest, Transform neckBone)
+        private static void AttachRedScarf(GameObject visual, Transform headBone, Transform neckBone, Transform upperChest)
         {
-            Transform parent = upperChest ?? visual.transform;
-            Vector3 neckAnchor;
-            if (neckBone != null && upperChest != null)
+            Transform parent = neckBone ?? upperChest ?? visual.transform;
+            float scale = GetScaleFactor(visual);
+
+            Vector3 neckAxis = visual.transform.up;
+            float neckLen = 0.12f;
+            if (neckBone != null && headBone != null && (headBone.position - neckBone.position).sqrMagnitude > 0.0001f)
             {
-                neckAnchor = Vector3.Lerp(upperChest.position, neckBone.position, 0.72f);
+                Vector3 span = headBone.position - neckBone.position;
+                neckLen = Mathf.Clamp(span.magnitude / scale, 0.09f, 0.16f);
+                neckAxis = Vector3.Slerp(visual.transform.up, span.normalized, 0.65f).normalized;
             }
-            else if (neckBone != null)
+
+            Vector3 neckAnchor;
+            if (neckBone != null)
             {
-                neckAnchor = neckBone.position - visual.transform.up * (0.045f * GetScaleFactor(visual));
+                neckAnchor = neckBone.position + neckAxis * (neckLen * 0.28f * scale);
+            }
+            else if (upperChest != null)
+            {
+                neckAnchor = upperChest.position + visual.transform.up * (0.14f * scale);
             }
             else
             {
-                neckAnchor = visual.transform.position + visual.transform.up * (1.46f * GetScaleFactor(visual));
+                neckAnchor = visual.transform.position + visual.transform.up * (1.52f * scale);
             }
 
-            Quaternion worldRot = Quaternion.LookRotation(visual.transform.forward, visual.transform.up);
-            var go = CreateGearObject("StandScarf", BuildScarfMesh(), GetScarfMaterial());
+            Vector3 scarfFwd = Vector3.ProjectOnPlane(visual.transform.forward, neckAxis);
+            if (scarfFwd.sqrMagnitude < 0.0001f) scarfFwd = visual.transform.forward;
+            scarfFwd.Normalize();
+
+            Quaternion worldRot = Quaternion.LookRotation(scarfFwd, neckAxis);
+            var go = CreateGearObject("StandScarf", BuildScarfMesh(neckLen), GetScarfMaterial());
             PlaceAnchoredPiece(visual, go, parent, neckAnchor, worldRot);
         }
 
@@ -199,7 +218,7 @@ namespace StandsOfValheim
             if (shinFwd.sqrMagnitude < 0.001f) shinFwd = visual.transform.forward;
 
             Quaternion shaftRot = Quaternion.LookRotation(shinFwd, shinUp);
-            float shaftHeight = shinLen * 0.76f;
+            float shaftHeight = shinLen * 0.72f;
             var shaftGo = CreateGearObject(namePrefix + "_Shaft", BuildBootShaftMesh(shaftHeight), GetLeatherBlackMaterial());
             PlaceAnchoredPiece(visual, shaftGo, lowerLeg, foot.position, shaftRot);
 
@@ -218,19 +237,41 @@ namespace StandsOfValheim
             PlaceAnchoredPiece(visual, footGo, foot, foot.position, footRot);
         }
 
-        private static void AttachLoincloth(
+        private static void AttachKneePad(GameObject visual, Transform upperLeg, Transform lowerLeg, Transform foot, string name)
+        {
+            if (lowerLeg == null) return;
+
+            Vector3 shinUp = (foot != null && (lowerLeg.position - foot.position).sqrMagnitude > 0.0001f)
+                ? (lowerLeg.position - foot.position).normalized
+                : visual.transform.up;
+            Vector3 kneeUp = upperLeg != null && (upperLeg.position - lowerLeg.position).sqrMagnitude > 0.0001f
+                ? Vector3.Slerp(shinUp, (upperLeg.position - lowerLeg.position).normalized, 0.35f).normalized
+                : shinUp;
+
+            Vector3 kneeFwd = Vector3.ProjectOnPlane(visual.transform.forward, kneeUp);
+            if (kneeFwd.sqrMagnitude < 0.0001f) kneeFwd = visual.transform.forward;
+            kneeFwd.Normalize();
+
+            Quaternion worldRot = Quaternion.LookRotation(kneeFwd, kneeUp);
+            var go = CreateGearObject(name, BuildKneePadMesh(), GetGoldMaterial());
+            PlaceAnchoredPiece(visual, go, lowerLeg, lowerLeg.position, worldRot);
+        }
+
+        private static void ComputeHipMetrics(
             GameObject visual,
             Transform hips,
             Transform spine,
             Transform leftThigh,
             Transform rightThigh,
-            Transform leftLowerLeg)
+            out Transform parent,
+            out Vector3 hipMid,
+            out float halfHipSpan,
+            out float hipToSpine,
+            out float scale)
         {
-            Transform parent = hips ?? visual.transform;
-            float scale = GetScaleFactor(visual);
+            parent = hips ?? visual.transform;
+            scale = GetScaleFactor(visual);
 
-            Vector3 hipMid;
-            float halfHipSpan;
             if (leftThigh != null && rightThigh != null)
             {
                 hipMid = 0.5f * (leftThigh.position + rightThigh.position);
@@ -243,18 +284,43 @@ namespace StandsOfValheim
                 halfHipSpan = 0.095f;
             }
 
+            hipToSpine = spine != null
+                ? Vector3.Dot(spine.position - hipMid, visual.transform.up) / scale
+                : 0.13f;
+            hipToSpine = Mathf.Clamp(hipToSpine, 0.09f, 0.18f);
+        }
+
+        private static void AttachLoincloth(
+            GameObject visual,
+            Transform hips,
+            Transform spine,
+            Transform leftThigh,
+            Transform rightThigh,
+            Transform leftLowerLeg)
+        {
+            ComputeHipMetrics(visual, hips, spine, leftThigh, rightThigh, out Transform parent, out Vector3 hipMid, out float halfHipSpan, out float hipToSpine, out float scale);
+
             float thighLen = (leftThigh != null && leftLowerLeg != null)
                 ? Vector3.Distance(leftThigh.position, leftLowerLeg.position) / scale
                 : 0.40f;
             thighLen = Mathf.Clamp(thighLen, 0.32f, 0.48f);
 
-            float hipToSpine = spine != null
-                ? Vector3.Dot(spine.position - hipMid, visual.transform.up) / scale
-                : 0.13f;
-            hipToSpine = Mathf.Clamp(hipToSpine, 0.09f, 0.18f);
-
             Quaternion worldRot = Quaternion.LookRotation(visual.transform.forward, visual.transform.up);
             var go = CreateGearObject("StandLoincloth", BuildLoinclothMesh(halfHipSpan, hipToSpine, thighLen), GetLoinclothMaterial());
+            PlaceAnchoredPiece(visual, go, parent, hipMid, worldRot);
+        }
+
+        private static void AttachGoldBelt(
+            GameObject visual,
+            Transform hips,
+            Transform spine,
+            Transform leftThigh,
+            Transform rightThigh)
+        {
+            ComputeHipMetrics(visual, hips, spine, leftThigh, rightThigh, out Transform parent, out Vector3 hipMid, out float halfHipSpan, out float hipToSpine, out _);
+
+            Quaternion worldRot = Quaternion.LookRotation(visual.transform.forward, visual.transform.up);
+            var go = CreateGearObject("StandBelt", BuildGoldBeltMesh(halfHipSpan, hipToSpine), GetGoldMaterial());
             PlaceAnchoredPiece(visual, go, parent, hipMid, worldRot);
         }
 
@@ -300,7 +366,7 @@ namespace StandsOfValheim
         {
             if (s_goldMaterial == null)
             {
-                s_goldMaterial = CreateCrispMaterial(GoldArmorColor, metallic: 0.85f, glossiness: 0.72f, GoldEmission);
+                s_goldMaterial = CreateCrispMaterial(GoldArmorColor, metallic: 0.92f, glossiness: 0.78f, GoldEmission, CreateForgedMetalTexture(GoldArmorColor));
             }
             return s_goldMaterial;
         }
@@ -335,7 +401,8 @@ namespace StandsOfValheim
         public static void ApplyGoldTint(Material mat)
         {
             if (mat == null) return;
-            ApplyMaterialProperties(mat, GoldArmorColor, metallic: 0.85f, glossiness: 0.72f, new Color(0.42f, 0.28f, 0.03f));
+            // Low emission preserves HelmetDverger's native etched metal texture and normal map shading.
+            ApplyMaterialProperties(mat, GoldCircletTint, metallic: 0.92f, glossiness: 0.78f, GoldEmission);
         }
 
         private static Shader FindValheimOpaqueShader()
@@ -421,7 +488,49 @@ namespace StandsOfValheim
             return tex;
         }
 
-        private static Material CreateCrispMaterial(Color color, float metallic, float glossiness, Color emission)
+        private static Texture2D CreateForgedMetalTexture(Color baseColor)
+        {
+            const int size = 128;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: true)
+            {
+                name = "StandForgedGoldMetalTex",
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear
+            };
+
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                float v = (y / (float)size) * Mathf.PI * 2f;
+                // Anisotropic brushed metal grain along horizontal rolling lines
+                float rowStreak = 0.055f * Mathf.Sin(v * 19f) + 0.035f * Mathf.Cos(v * 43f + 0.7f);
+
+                for (int x = 0; x < size; x++)
+                {
+                    float u = (x / (float)size) * Mathf.PI * 2f;
+                    // Seamless multi-frequency hammered bronze patina & micro-scratches
+                    float brush = 0.05f * Mathf.Sin(u * 3f + v * 17f)
+                                + 0.035f * Mathf.Cos(u * 11f - v * 29f);
+                    float hammer = 0.075f * Mathf.Sin(u * 4f + 0.4f) * Mathf.Cos(v * 4f - 0.3f)
+                                 + 0.055f * Mathf.Cos(u * 7f - v * 6f);
+                    // Subtle micro-speckling deterministic from tiled coords
+                    float micro = (((x * 73856093 ^ y * 19349663) & 15) / 15f - 0.5f) * 0.05f;
+
+                    float shade = Mathf.Clamp(1.0f + rowStreak + brush + hammer + micro, 0.72f, 1.24f);
+                    // Slightly warmer dark bronze patina in crevices, brighter burnished gold on highs
+                    float r = Mathf.Clamp01(baseColor.r * shade * 1.03f);
+                    float g = Mathf.Clamp01(baseColor.g * Mathf.Pow(shade, 1.08f));
+                    float b = Mathf.Clamp01(baseColor.b * Mathf.Pow(shade, 1.25f));
+                    pixels[y * size + x] = new Color(r, g, b, 1f);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply(updateMipmaps: true, makeNoLongerReadable: false);
+            return tex;
+        }
+
+        private static Material CreateCrispMaterial(Color color, float metallic, float glossiness, Color emission, Texture2D customTexture = null)
         {
             Material mat = null;
             Shader shader = FindValheimOpaqueShader();
@@ -439,7 +548,7 @@ namespace StandsOfValheim
             if (mat != null)
             {
                 mat.renderQueue = -1;
-                mat.mainTexture = CreateSolidTexture(color);
+                mat.mainTexture = customTexture != null ? customTexture : CreateSolidTexture(color);
                 // Texture already carries exact albedo tint; keep _Color white so both _MainTex*_Color
                 // shaders and texture-only shaders render vibrant true colors (never washed white).
                 ApplyMaterialProperties(mat, Color.white, metallic, glossiness, emission);
@@ -468,7 +577,6 @@ namespace StandsOfValheim
 
         private static Mesh BuildShoulderPadMesh()
         {
-            var mesh = new Mesh { name = "StandShoulderPadMesh" };
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
@@ -482,95 +590,99 @@ namespace StandsOfValheim
                 ( 0.135f,  0.040f, 0.104f, 0.012f),
                 ( 0.178f,  0.056f, 0.072f, 0.008f),
             };
-            AppendArmorShellStrip(verts, tris, wingStations, 5, ridgeHeight: 0.012f);
+            AppendArmorShellStrip(verts, tris, wingStations, 5, ridgeHeight: 0.014f);
 
-            // 2. Lower overlapping deltoid guard lame curving smoothly below the outer edge
+            // 2. Sculpted outer beveled armor trim rim framing the wing edge
+            var trimStations = new (float x, float y, float zHalfWidth, float halfThick)[]
+            {
+                ( 0.102f,  0.050f, 0.116f, 0.017f),
+                ( 0.145f,  0.044f, 0.106f, 0.016f),
+                ( 0.184f,  0.060f, 0.075f, 0.011f),
+            };
+            AppendArmorShellStrip(verts, tris, trimStations, 5, ridgeHeight: 0.008f);
+
+            // 3. Lower overlapping deltoid guard lame curving smoothly below the outer edge
             var lowerStations = new (float x, float y, float zHalfWidth, float halfThick)[]
             {
                 ( 0.068f,  0.024f, 0.098f, 0.010f),
                 ( 0.118f, -0.028f, 0.094f, 0.011f),
                 ( 0.132f, -0.078f, 0.076f, 0.009f),
             };
-            AppendArmorShellStrip(verts, tris, lowerStations, 5, ridgeHeight: 0.006f);
+            AppendArmorShellStrip(verts, tris, lowerStations, 5, ridgeHeight: 0.007f);
 
-            mesh.SetVertices(verts);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
+            return FinalizeMesh("StandShoulderPadMesh", verts, tris, uvScale: 4.5f);
         }
 
-        private static Mesh BuildScarfMesh()
+        private static Mesh BuildScarfMesh(float neckLen)
         {
-            var mesh = new Mesh { name = "StandScarfMesh" };
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
-            // 1. Primary folded crimson collar loop wrapping neck/clavicles
-            var outerRings = new List<Vector3[]>();
-            int segs = 20;
+            float vScale = Mathf.Clamp(neckLen / 0.12f, 0.85f, 1.25f);
+            int segs = 22;
             int tubeSegs = 8;
+
+            // 1. Wide base scarf collar resting clearly ON the clavicles/traps & sternum (not buried inside torso)
+            var baseWrap = new List<Vector3[]>(segs);
             for (int i = 0; i < segs; i++)
             {
                 float theta = (i / (float)segs) * Mathf.PI * 2f;
-                float cx = 0.122f * Mathf.Sin(theta);
-                float cz = 0.134f * Mathf.Cos(theta);
-                float cy = -0.030f * Mathf.Cos(theta) + 0.007f * Mathf.Sin(theta * 3f);
+                float cx = 0.144f * Mathf.Sin(theta);
+                float cz = 0.140f * Mathf.Cos(theta) + 0.010f;
+                float cy = (-0.016f + 0.006f * Mathf.Sin(theta * 3f)) * vScale;
                 Vector3 center = new Vector3(cx, cy, cz);
                 Vector3 radialOut = new Vector3(Mathf.Sin(theta), 0f, Mathf.Cos(theta)).normalized;
-                Vector3 up = Vector3.up;
-
-                float rHoriz = 0.030f + 0.005f * Mathf.Cos(theta);
-                float rVert = 0.036f + 0.004f * Mathf.Cos(theta * 2f);
-                outerRings.Add(CreateEllipseRing(center, radialOut, up, rHoriz, rVert, tubeSegs));
+                baseWrap.Add(CreateEllipseRing(center, radialOut, Vector3.up, 0.032f, 0.030f * vScale, tubeSegs));
             }
-            AppendClosedLoopTorus(verts, tris, outerRings);
+            AppendClosedLoopTorus(verts, tris, baseWrap);
 
-            // 2. Inner upper neck fold loop for layered scarf volume
-            var innerRings = new List<Vector3[]>();
+            // 2. Plump mid-neck wrapped muffler fold hugging around the neck column
+            var midWrap = new List<Vector3[]>(segs);
             for (int i = 0; i < segs; i++)
             {
                 float theta = (i / (float)segs) * Mathf.PI * 2f;
-                float cx = 0.104f * Mathf.Sin(theta);
-                float cz = 0.112f * Mathf.Cos(theta);
-                float cy = 0.022f - 0.014f * Mathf.Cos(theta);
+                float cx = 0.130f * Mathf.Sin(theta);
+                float cz = 0.126f * Mathf.Cos(theta) + 0.008f;
+                float cy = (0.022f + 0.005f * Mathf.Cos(theta * 2f)) * vScale;
                 Vector3 center = new Vector3(cx, cy, cz);
                 Vector3 radialOut = new Vector3(Mathf.Sin(theta), 0f, Mathf.Cos(theta)).normalized;
-                innerRings.Add(CreateEllipseRing(center, radialOut, Vector3.up, 0.020f, 0.024f, tubeSegs));
+                midWrap.Add(CreateEllipseRing(center, radialOut, Vector3.up, 0.030f, 0.028f * vScale, tubeSegs));
             }
-            AppendClosedLoopTorus(verts, tris, innerRings);
+            AppendClosedLoopTorus(verts, tris, midWrap);
 
-            // 3. Tucked front chest drape fold (short, stops above chest center)
-            var frontDrape = new List<Vector3[]>();
-            frontDrape.Add(CreateEllipseRing(new Vector3(0f, -0.035f, 0.138f), Vector3.right, Vector3.forward, 0.048f, 0.018f, 8));
-            frontDrape.Add(CreateEllipseRing(new Vector3(0.010f, -0.095f, 0.140f), Vector3.right, Vector3.forward, 0.042f, 0.014f, 8));
-            frontDrape.Add(CreateEllipseRing(new Vector3(0.018f, -0.150f, 0.122f), Vector3.right, Vector3.forward, 0.026f, 0.008f, 8));
-            AppendLoftedRings(verts, tris, frontDrape, capStart: true, capEnd: true);
+            // 3. Upper neck rim fold sitting right under the jaw & nape
+            var topWrap = new List<Vector3[]>(segs);
+            for (int i = 0; i < segs; i++)
+            {
+                float theta = (i / (float)segs) * Mathf.PI * 2f;
+                float cx = 0.118f * Mathf.Sin(theta);
+                float cz = 0.114f * Mathf.Cos(theta) + 0.006f;
+                float cy = (0.054f - 0.006f * Mathf.Cos(theta)) * vScale;
+                Vector3 center = new Vector3(cx, cy, cz);
+                Vector3 radialOut = new Vector3(Mathf.Sin(theta), 0f, Mathf.Cos(theta)).normalized;
+                topWrap.Add(CreateEllipseRing(center, radialOut, Vector3.up, 0.024f, 0.022f * vScale, tubeSegs));
+            }
+            AppendClosedLoopTorus(verts, tris, topWrap);
 
-            // 4. Two short sculpted upper-back scarf tails (NOT a long cape!)
+            // 4. Two short upper-back scarf tails clearing the upper back/shoulder blades
             for (int side = -1; side <= 1; side += 2)
             {
                 var tail = new List<Vector3[]>();
                 Vector3 rightDir = new Vector3(0.92f, 0f, side * 0.25f).normalized;
                 Vector3 thickDir = Vector3.Cross(rightDir, Vector3.up).normalized;
 
-                tail.Add(CreateEllipseRing(new Vector3(side * 0.045f, -0.010f, -0.128f), rightDir, thickDir, 0.045f, 0.014f, 8));
-                tail.Add(CreateEllipseRing(new Vector3(side * 0.075f, -0.095f, -0.175f), rightDir, thickDir, 0.042f, 0.011f, 8));
-                tail.Add(CreateEllipseRing(new Vector3(side * 0.105f, -0.205f, -0.205f), rightDir, thickDir, 0.036f, 0.008f, 8));
-                tail.Add(CreateEllipseRing(new Vector3(side * 0.125f, -0.300f, -0.220f), rightDir, thickDir, 0.022f, 0.005f, 8));
+                tail.Add(CreateEllipseRing(new Vector3(side * 0.048f,  0.008f * vScale, -0.140f), rightDir, thickDir, 0.044f, 0.015f, 8));
+                tail.Add(CreateEllipseRing(new Vector3(side * 0.082f, -0.075f,          -0.192f), rightDir, thickDir, 0.040f, 0.012f, 8));
+                tail.Add(CreateEllipseRing(new Vector3(side * 0.112f, -0.175f,          -0.218f), rightDir, thickDir, 0.032f, 0.008f, 8));
+                tail.Add(CreateEllipseRing(new Vector3(side * 0.130f, -0.255f,          -0.232f), rightDir, thickDir, 0.020f, 0.005f, 8));
                 AppendLoftedRings(verts, tris, tail, capStart: true, capEnd: true);
             }
 
-            mesh.SetVertices(verts);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
+            return FinalizeMesh("StandScarfMesh", verts, tris, uvScale: 3.5f);
         }
 
         private static Mesh BuildGloveFistMesh(float fistLength)
         {
-            var mesh = new Mesh { name = "StandGloveFistMesh" };
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
@@ -585,16 +697,11 @@ namespace StandsOfValheim
             };
             AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
 
-            mesh.SetVertices(verts);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
+            return FinalizeMesh("StandGloveFistMesh", verts, tris, uvScale: 4.0f);
         }
 
         private static Mesh BuildWristCuffMesh(float length)
         {
-            var mesh = new Mesh { name = "StandWristCuffMesh" };
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
@@ -608,16 +715,11 @@ namespace StandsOfValheim
             };
             AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
 
-            mesh.SetVertices(verts);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
+            return FinalizeMesh("StandWristCuffMesh", verts, tris, uvScale: 4.0f);
         }
 
         private static Mesh BuildBootShaftMesh(float height)
         {
-            var mesh = new Mesh { name = "StandBootShaftMesh" };
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
@@ -633,16 +735,11 @@ namespace StandsOfValheim
             };
             AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
 
-            mesh.SetVertices(verts);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
+            return FinalizeMesh("StandBootShaftMesh", verts, tris, uvScale: 3.5f);
         }
 
         private static Mesh BuildBootFootMesh(float toeTipZ, float ankleHeight)
         {
-            var mesh = new Mesh { name = "StandBootFootMesh" };
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
@@ -669,16 +766,11 @@ namespace StandsOfValheim
             }
             AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
 
-            mesh.SetVertices(verts);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
+            return FinalizeMesh("StandBootFootMesh", verts, tris, uvScale: 3.5f);
         }
 
         private static Mesh BuildLoinclothMesh(float halfHipSpan, float hipToSpine, float thighLen)
         {
-            var mesh = new Mesh { name = "StandLoinclothMesh" };
             var verts = new List<Vector3>();
             var tris = new List<int>();
 
@@ -738,11 +830,85 @@ namespace StandsOfValheim
             };
             AppendLoftedRings(verts, tris, underBand, capStart: true, capEnd: true);
 
-            mesh.SetVertices(verts);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
+            return FinalizeMesh("StandLoinclothMesh", verts, tris, uvScale: 3.5f);
+        }
+
+        private static Mesh BuildGoldBeltMesh(float halfHipSpan, float hipToSpine)
+        {
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+
+            float waistY = Mathf.Clamp(hipToSpine * 0.54f, 0.048f, 0.088f);
+            float beltRx = halfHipSpan + 0.104f;
+            float beltRz = 0.156f;
+
+            // 1. Beveled hexagonal metallic waist belt wrapping snugly above the white loincloth with front V-dip
+            const int segs = 28;
+            var beltRings = new List<Vector3[]>(segs);
+            for (int i = 0; i < segs; i++)
+            {
+                float theta = (i / (float)segs) * Mathf.PI * 2f;
+                float cos = Mathf.Cos(theta);
+                float sin = Mathf.Sin(theta);
+                float frontFactor = Mathf.Max(0f, cos);
+
+                float cx = beltRx * sin;
+                // Slightly proud of white sash tie strip in front to prevent z-fighting
+                float cz = -0.004f + beltRz * cos + 0.012f * frontFactor * frontFactor;
+                float cy = (waistY + 0.038f) - 0.026f * cos + 0.005f * Mathf.Cos(theta * 2f);
+
+                Vector3 center = new Vector3(cx, cy, cz);
+                Vector3 radialOut = new Vector3(sin, 0f, cos).normalized;
+                beltRings.Add(CreateBeveledStrapRing(center, radialOut, Vector3.up, halfThick: 0.017f, halfHeight: 0.022f));
+            }
+            AppendClosedLoopTorus(verts, tris, beltRings);
+
+            // 2. Twin iconic circular golden belt medallions framing top corners of the white loincloth
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3 studCenter = new Vector3(side * 0.090f, waistY + 0.022f, 0.156f);
+                Vector3 studNormal = new Vector3(side * 0.38f, 0f, 0.92f).normalized;
+                AppendDiscMedallion(verts, tris, studCenter, studNormal, outerRadius: 0.028f, domeDepth: 0.022f, segs: 14);
+            }
+
+            // 3. Center front golden belt clasp stud at the V-dip vertex
+            AppendDiscMedallion(verts, tris, new Vector3(0f, waistY + 0.012f, 0.168f), Vector3.forward, outerRadius: 0.020f, domeDepth: 0.016f, segs: 12);
+
+            return FinalizeMesh("StandBeltMesh", verts, tris, uvScale: 5.5f);
+        }
+
+        private static Mesh BuildKneePadMesh()
+        {
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+
+            // 1. Beveled golden strap collar encircling the knee joint cleanly
+            const int segs = 20;
+            var strapRings = new List<Vector3[]>(segs);
+            for (int i = 0; i < segs; i++)
+            {
+                float theta = (i / (float)segs) * Mathf.PI * 2f;
+                float cx = 0.094f * Mathf.Sin(theta);
+                float cz = 0.096f * Mathf.Cos(theta);
+                Vector3 center = new Vector3(cx, 0.006f, cz);
+                Vector3 radialOut = new Vector3(Mathf.Sin(theta), 0f, Mathf.Cos(theta)).normalized;
+                strapRings.Add(CreateBeveledStrapRing(center, radialOut, Vector3.up, halfThick: 0.012f, halfHeight: 0.018f));
+            }
+            AppendClosedLoopTorus(verts, tris, strapRings);
+
+            // 2. Circular domed golden knee shield (poleyn) centered proud over the kneecap
+            AppendDiscMedallion(verts, tris, new Vector3(0f, 0.008f, 0.088f), Vector3.forward, outerRadius: 0.068f, domeDepth: 0.034f, segs: 18);
+
+            // 3. Lower golden shin-guard tongue wing below the knee cap matching Star Platinum silhouette
+            var lowerWing = new (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[]
+            {
+                (-0.018f, 0.102f, 0.048f, 0.009f, -0.024f, 0.000f),
+                (-0.056f, 0.098f, 0.036f, 0.008f, -0.020f, 0.008f),
+                (-0.096f, 0.092f, 0.018f, 0.006f, -0.012f, 0.014f),
+            };
+            AppendClothPanelStrip(verts, tris, lowerWing, arcSteps: 5, faceDir: +1f, pleatAmp: 0.002f);
+
+            return FinalizeMesh("StandKneePadMesh", verts, tris, uvScale: 5.5f);
         }
 
         private static void AppendWaistFoldLoop(
@@ -1037,6 +1203,84 @@ namespace StandsOfValheim
             Vector3 sum = Vector3.zero;
             for (int i = 0; i < ring.Length; i++) sum += ring[i];
             return sum / ring.Length;
+        }
+
+        private static Mesh FinalizeMesh(string name, List<Vector3> verts, List<int> tris, float uvScale)
+        {
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            AssignBoxUVs(mesh, verts, uvScale);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static void AssignBoxUVs(Mesh mesh, List<Vector3> verts, float uvScale)
+        {
+            var normals = mesh.normals;
+            var uvs = new Vector2[verts.Count];
+            for (int i = 0; i < verts.Count; i++)
+            {
+                Vector3 v = verts[i] * uvScale;
+                Vector3 n = i < normals.Length ? normals[i] : Vector3.up;
+                float ax = Mathf.Abs(n.x);
+                float ay = Mathf.Abs(n.y);
+                float az = Mathf.Abs(n.z);
+
+                if (ax >= ay && ax >= az)
+                {
+                    uvs[i] = new Vector2(v.z, v.y);
+                }
+                else if (ay >= ax && ay >= az)
+                {
+                    uvs[i] = new Vector2(v.x, v.z);
+                }
+                else
+                {
+                    uvs[i] = new Vector2(v.x, v.y);
+                }
+            }
+            mesh.SetUVs(0, uvs);
+        }
+
+        private static Vector3[] CreateBeveledStrapRing(Vector3 center, Vector3 radialOut, Vector3 up, float halfThick, float halfHeight)
+        {
+            // Chamfered hexagonal armor cross-section catches crisp metallic rim specular highlights
+            float bevel = halfHeight * 0.58f;
+            return new[]
+            {
+                center - radialOut * (halfThick * 0.7f) + up * halfHeight,
+                center + radialOut * (halfThick * 0.65f) + up * bevel,
+                center + radialOut * halfThick,
+                center + radialOut * (halfThick * 0.65f) - up * bevel,
+                center - radialOut * (halfThick * 0.7f) - up * halfHeight,
+                center - radialOut * halfThick,
+            };
+        }
+
+        private static void AppendDiscMedallion(
+            List<Vector3> verts,
+            List<int> tris,
+            Vector3 center,
+            Vector3 normal,
+            float outerRadius,
+            float domeDepth,
+            int segs)
+        {
+            Vector3 upHint = Mathf.Abs(Vector3.Dot(normal, Vector3.up)) < 0.9f ? Vector3.up : Vector3.right;
+            Vector3 tangentU = Vector3.Cross(upHint, normal).normalized;
+            Vector3 tangentV = Vector3.Cross(normal, tangentU).normalized;
+
+            var rings = new List<Vector3[]>
+            {
+                CreateEllipseRing(center - normal * (domeDepth * 0.25f), tangentU, tangentV, outerRadius,         outerRadius,         segs),
+                CreateEllipseRing(center + normal * (domeDepth * 0.35f), tangentU, tangentV, outerRadius * 0.92f, outerRadius * 0.92f, segs),
+                CreateEllipseRing(center + normal * (domeDepth * 0.55f), tangentU, tangentV, outerRadius * 0.72f, outerRadius * 0.72f, segs),
+                CreateEllipseRing(center + normal * (domeDepth * 0.88f), tangentU, tangentV, outerRadius * 0.44f, outerRadius * 0.44f, segs),
+                CreateEllipseRing(center + normal * domeDepth,           tangentU, tangentV, outerRadius * 0.14f, outerRadius * 0.14f, segs),
+            };
+            AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
         }
 
         private static void EmitTriangleOutward(List<Vector3> verts, List<int> tris, int i0, int i1, int i2, Vector3 outwardHint)

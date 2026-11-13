@@ -194,7 +194,7 @@ namespace StandsOfValheim
             follower.FistL = FindBone(bodyModel, visual, HumanBodyBones.LeftHand, "LeftHand");
             follower.FistR = FindBone(bodyModel, visual, HumanBodyBones.RightHand, "RightHand");
 
-            Plugin.Log?.LogInfo("StarPlatinum: Constructed Stand with golden shoulder pads, red scarf, white loincloth, black boots, black gloves, golden circlet, and Painter Curls hair.");
+            Plugin.Log?.LogInfo("StarPlatinum: Constructed Stand with dark forged-gold shoulder pads, belt, knee pads & circlet, neck red scarf, white loincloth, black boots & gloves, and Painter Curls hair.");
             return true;
         }
 
@@ -539,7 +539,7 @@ namespace StandsOfValheim
                 r.receiveShadows = false;
 
                 // Preserve dedicated opaque PBR materials built by StandEquipmentBuilder
-                if (HasNameInHierarchy(r.transform, visual.transform, "shoulderpad", "scarf", "glove", "boot", "loincloth"))
+                if (HasNameInHierarchy(r.transform, visual.transform, "shoulderpad", "scarf", "glove", "boot", "loincloth", "belt", "kneepad"))
                 {
                     continue;
                 }
