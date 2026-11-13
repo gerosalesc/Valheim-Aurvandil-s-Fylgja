@@ -21,11 +21,63 @@ namespace StandsOfValheim
         public static readonly Color LeatherEmission     = new Color(0.02f, 0.01f, 0.04f);
         public static readonly Color LoinclothWhiteColor = new Color(0.68f, 0.68f, 0.72f, 1.0f);
         public static readonly Color LoinclothEmission   = Color.black;
+        public static readonly Color HairBlackColor      = new Color(0.055f, 0.045f, 0.075f, 1.0f);
+        public static readonly Color HairEmission        = new Color(0.016f, 0.010f, 0.028f);
 
         private static Material s_goldMaterial;
         private static Material s_scarfMaterial;
         private static Material s_leatherBlackMaterial;
         private static Material s_loinclothMaterial;
+        private static Material s_hairMaterial;
+
+        public static void AttachStarPlatinumHair(GameObject visual, Transform headBone, Transform neckBone, GameObject circlet)
+        {
+            if (visual == null || headBone == null) return;
+
+            float scale = GetScaleFactor(visual);
+            Vector3 headUp = visual.transform.up;
+            if (neckBone != null && (headBone.position - neckBone.position).sqrMagnitude > 0.0001f)
+            {
+                headUp = Vector3.Slerp(visual.transform.up, (headBone.position - neckBone.position).normalized, 0.45f).normalized;
+            }
+            Vector3 headFwd = Vector3.ProjectOnPlane(visual.transform.forward, headUp);
+            if (headFwd.sqrMagnitude < 0.0001f) headFwd = visual.transform.forward;
+            headFwd.Normalize();
+
+            // Default cranium center relative to head pivot, refined by actual equipped Dvergr circlet bounds
+            Vector3 hairAnchor = headBone.position + headUp * (0.095f * scale) - headFwd * (0.005f * scale);
+            if (circlet != null)
+            {
+                MeshFilter bestMf = null;
+                float bestSize = 0f;
+                foreach (var mf in circlet.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (mf == null || mf.sharedMesh == null) continue;
+                    float sz = mf.sharedMesh.bounds.size.sqrMagnitude;
+                    if (sz > bestSize)
+                    {
+                        bestSize = sz;
+                        bestMf = mf;
+                    }
+                }
+                if (bestMf != null)
+                {
+                    Vector3 circletWorldCenter = bestMf.transform.TransformPoint(bestMf.sharedMesh.bounds.center);
+                    if ((circletWorldCenter - headBone.position).sqrMagnitude < (0.35f * scale) * (0.35f * scale))
+                    {
+                        // Align vertically & fore-aft with the circlet ring while staying centered on headBone
+                        Vector3 delta = circletWorldCenter - headBone.position;
+                        hairAnchor = headBone.position
+                            + headUp * Vector3.Dot(delta, headUp)
+                            + headFwd * (Vector3.Dot(delta, headFwd) - 0.006f * scale);
+                    }
+                }
+            }
+
+            Quaternion worldRot = Quaternion.LookRotation(headFwd, headUp);
+            var hairGo = CreateGearObject("StandHairMane", BuildStarPlatinumHairMesh(), GetHairMaterial());
+            PlaceAnchoredPiece(visual, hairGo, headBone, hairAnchor, worldRot);
+        }
 
         public static void EquipStandOutfit(GameObject visual, SkinnedMeshRenderer bodyModel, Transform headBone, Func<HumanBodyBones, string, Transform> findBone)
         {
@@ -398,6 +450,15 @@ namespace StandsOfValheim
             return s_loinclothMaterial;
         }
 
+        public static Material GetHairMaterial()
+        {
+            if (s_hairMaterial == null)
+            {
+                s_hairMaterial = CreateCrispMaterial(HairBlackColor, metallic: 0.08f, glossiness: 0.36f, HairEmission, CreateHairStrandTexture(HairBlackColor));
+            }
+            return s_hairMaterial;
+        }
+
         public static void ApplyGoldTint(Material mat)
         {
             if (mat == null) return;
@@ -522,6 +583,40 @@ namespace StandsOfValheim
                     float g = Mathf.Clamp01(baseColor.g * Mathf.Pow(shade, 1.08f));
                     float b = Mathf.Clamp01(baseColor.b * Mathf.Pow(shade, 1.25f));
                     pixels[y * size + x] = new Color(r, g, b, 1f);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply(updateMipmaps: true, makeNoLongerReadable: false);
+            return tex;
+        }
+
+        private static Texture2D CreateHairStrandTexture(Color baseColor)
+        {
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: true)
+            {
+                name = "StandHairStrandTex",
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear
+            };
+
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                float v = (y / (float)size) * Mathf.PI * 2f;
+                for (int x = 0; x < size; x++)
+                {
+                    float u = (x / (float)size) * Mathf.PI * 2f;
+                    // Seamless dark violet-charcoal longitudinal strand highlights
+                    float strand = 0.16f * Mathf.Sin(u * 14f + Mathf.Sin(v * 3f) * 1.4f)
+                                 + 0.09f * Mathf.Cos(u * 29f - v * 2f);
+                    float shade = Mathf.Clamp(1.0f + strand, 0.72f, 1.38f);
+                    pixels[y * size + x] = new Color(
+                        Mathf.Clamp01(baseColor.r * shade),
+                        Mathf.Clamp01(baseColor.g * shade * 0.92f),
+                        Mathf.Clamp01(baseColor.b * shade * 1.15f),
+                        1f);
                 }
             }
 
@@ -933,6 +1028,249 @@ namespace StandsOfValheim
             AppendClothPanelStrip(verts, tris, lowerWing, arcSteps: 5, faceDir: +1f, pleatAmp: 0.002f);
 
             return FinalizeMesh("StandKneePadMesh", verts, tris, uvScale: 5.5f);
+        }
+
+        private static Mesh BuildStarPlatinumHairMesh()
+        {
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+
+            // 1. Fitted black skull cap & temple/nape shell anchored cleanly above the golden circlet
+            AppendHairScalpCap(verts, tris);
+
+            // 2. Jagged upward-swept front bangs/crest erupting right above & behind the circlet rim
+            AppendHairLock(verts, tris, baseWidth: 0.046f, baseThick: 0.026f, rollDeg: 0f,
+                new Vector3(0.000f, 0.010f, 0.078f),
+                new Vector3(0.005f, 0.095f, 0.088f),
+                new Vector3(0.018f, 0.180f, 0.020f),
+                new Vector3(0.032f, 0.220f, -0.068f));
+
+            AddMirroredLocks(verts, tris, baseWidth: 0.044f, baseThick: 0.024f, rollDeg: 18f,
+                new Vector3(0.044f, 0.012f, 0.072f),
+                new Vector3(0.070f, 0.092f, 0.066f),
+                new Vector3(0.095f, 0.168f, -0.005f),
+                new Vector3(0.114f, 0.198f, -0.082f));
+
+            // Sharp temple "horn" spikes jutting out/up right beside the sides of the golden headband
+            AddMirroredLocks(verts, tris, baseWidth: 0.038f, baseThick: 0.022f, rollDeg: 28f,
+                new Vector3(0.078f, 0.005f, 0.046f),
+                new Vector3(0.126f, 0.052f, 0.038f),
+                new Vector3(0.164f, 0.110f, -0.020f),
+                new Vector3(0.175f, 0.142f, -0.082f));
+
+            // 3. Signature towering windswept S-curve billowing flames sweeping up and back
+            AppendHairLock(verts, tris, baseWidth: 0.068f, baseThick: 0.036f, rollDeg: 10f,
+                new Vector3(0.018f, 0.052f, 0.032f),
+                new Vector3(0.048f, 0.188f, -0.045f),
+                new Vector3(0.102f, 0.252f, -0.178f),
+                new Vector3(0.150f, 0.232f, -0.295f),
+                new Vector3(0.175f, 0.254f, -0.342f));
+
+            AppendHairLock(verts, tris, baseWidth: 0.066f, baseThick: 0.035f, rollDeg: -10f,
+                new Vector3(-0.022f, 0.056f, 0.028f),
+                new Vector3(-0.045f, 0.198f, -0.035f),
+                new Vector3(-0.050f, 0.268f, -0.148f),
+                new Vector3(-0.015f, 0.252f, -0.255f),
+                new Vector3(0.022f, 0.272f, -0.308f));
+
+            AppendHairLock(verts, tris, baseWidth: 0.056f, baseThick: 0.030f, rollDeg: -22f,
+                new Vector3(-0.055f, 0.050f, 0.010f),
+                new Vector3(-0.104f, 0.178f, -0.048f),
+                new Vector3(-0.138f, 0.246f, -0.138f),
+                new Vector3(-0.150f, 0.272f, -0.208f));
+
+            AppendHairLock(verts, tris, baseWidth: 0.058f, baseThick: 0.030f, rollDeg: 22f,
+                new Vector3(0.064f, 0.046f, 0.008f),
+                new Vector3(0.118f, 0.158f, -0.058f),
+                new Vector3(0.164f, 0.208f, -0.172f),
+                new Vector3(0.198f, 0.198f, -0.268f));
+
+            // Center & inner upper-crown filler waves
+            AppendHairLock(verts, tris, baseWidth: 0.056f, baseThick: 0.028f, rollDeg: 0f,
+                new Vector3(0.000f, 0.058f, 0.000f),
+                new Vector3(0.012f, 0.162f, -0.090f),
+                new Vector3(0.038f, 0.198f, -0.205f),
+                new Vector3(0.062f, 0.188f, -0.275f));
+
+            AddMirroredLocks(verts, tris, baseWidth: 0.052f, baseThick: 0.026f, rollDeg: 14f,
+                new Vector3(0.045f, 0.052f, -0.018f),
+                new Vector3(0.088f, 0.145f, -0.110f),
+                new Vector3(0.118f, 0.175f, -0.215f),
+                new Vector3(0.136f, 0.160f, -0.275f));
+
+            // 4. Swept-back side wings above ears & mid-occiput flares (prominent in 3rd-person side/rear views)
+            AddMirroredLocks(verts, tris, baseWidth: 0.050f, baseThick: 0.026f, rollDeg: 35f,
+                new Vector3(0.075f, 0.028f, -0.020f),
+                new Vector3(0.138f, 0.075f, -0.088f),
+                new Vector3(0.180f, 0.118f, -0.180f),
+                new Vector3(0.195f, 0.138f, -0.242f));
+
+            AddMirroredLocks(verts, tris, baseWidth: 0.046f, baseThick: 0.024f, rollDeg: 40f,
+                new Vector3(0.072f, -0.010f, -0.045f),
+                new Vector3(0.128f, 0.015f, -0.115f),
+                new Vector3(0.160f, 0.052f, -0.195f),
+                new Vector3(0.168f, 0.078f, -0.238f));
+
+            // 5. Rear occiput & nape hooked spikes clearing cleanly above the neck scarf
+            AppendHairLock(verts, tris, baseWidth: 0.054f, baseThick: 0.026f, rollDeg: 0f,
+                new Vector3(0.000f, 0.018f, -0.078f),
+                new Vector3(0.010f, 0.058f, -0.165f),
+                new Vector3(0.022f, 0.105f, -0.238f),
+                new Vector3(0.028f, 0.135f, -0.268f));
+
+            AddMirroredLocks(verts, tris, baseWidth: 0.048f, baseThick: 0.024f, rollDeg: 20f,
+                new Vector3(0.054f, 0.010f, -0.074f),
+                new Vector3(0.098f, 0.042f, -0.155f),
+                new Vector3(0.124f, 0.085f, -0.222f),
+                new Vector3(0.132f, 0.112f, -0.248f));
+
+            AddMirroredLocks(verts, tris, baseWidth: 0.042f, baseThick: 0.020f, rollDeg: 25f,
+                new Vector3(0.046f, -0.038f, -0.072f),
+                new Vector3(0.082f, -0.028f, -0.142f),
+                new Vector3(0.098f, -0.002f, -0.192f),
+                new Vector3(0.104f, 0.024f, -0.205f));
+
+            return FinalizeMesh("StandHairManeMesh", verts, tris, uvScale: 4.5f);
+        }
+
+        private static void AppendHairScalpCap(List<Vector3> verts, List<int> tris)
+        {
+            // Stacked closed rings forming the fitted black skull cap above the forehead circlet down to the nape
+            var levels = new (float yFront, float yBack, float rx, float rz, float zShift)[]
+            {
+                (0.006f, -0.070f, 0.105f, 0.112f, -0.006f), // Above front headband & down to nape
+                (0.032f, -0.032f, 0.108f, 0.116f, -0.008f),
+                (0.062f,  0.036f, 0.104f, 0.112f, -0.010f),
+                (0.086f,  0.078f, 0.084f, 0.092f, -0.012f),
+                (0.100f,  0.098f, 0.042f, 0.048f, -0.014f),
+            };
+
+            const int segs = 20;
+            var rings = new List<Vector3[]>(levels.Length);
+            foreach (var lv in levels)
+            {
+                var ring = new Vector3[segs];
+                for (int i = 0; i < segs; i++)
+                {
+                    float theta = (i / (float)segs) * Mathf.PI * 2f;
+                    float cos = Mathf.Cos(theta); // +1 front (+Z), -1 back (-Z)
+                    float frontMix = 0.5f * (cos + 1f);
+                    float y = Mathf.Lerp(lv.yBack, lv.yFront, frontMix);
+                    ring[i] = new Vector3(lv.rx * Mathf.Sin(theta), y, lv.zShift + lv.rz * cos);
+                }
+                rings.Add(ring);
+            }
+
+            AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
+        }
+
+        private static void AddMirroredLocks(
+            List<Vector3> verts,
+            List<int> tris,
+            float baseWidth,
+            float baseThick,
+            float rollDeg,
+            params Vector3[] rightControlPoints)
+        {
+            AppendHairLock(verts, tris, baseWidth, baseThick, rollDeg, rightControlPoints);
+
+            var leftControlPoints = new Vector3[rightControlPoints.Length];
+            for (int i = 0; i < rightControlPoints.Length; i++)
+            {
+                Vector3 p = rightControlPoints[i];
+                leftControlPoints[i] = new Vector3(-p.x, p.y, p.z);
+            }
+            AppendHairLock(verts, tris, baseWidth, baseThick, -rollDeg, leftControlPoints);
+        }
+
+        private static void AppendHairLock(
+            List<Vector3> verts,
+            List<int> tris,
+            float baseWidth,
+            float baseThick,
+            float rollDeg,
+            params Vector3[] ctrl)
+        {
+            if (ctrl == null || ctrl.Length < 3) return;
+
+            const int steps = 8;
+            var centers = new Vector3[steps + 1];
+            for (int s = 0; s <= steps; s++)
+            {
+                centers[s] = EvaluateCatmullRom(ctrl, s / (float)steps);
+            }
+
+            Vector3 prevTangent = (centers[1] - centers[0]).normalized;
+            Vector3 radialHint = centers[0].sqrMagnitude > 0.0001f ? centers[0].normalized : Vector3.up;
+            Vector3 widthAxis = Vector3.Cross(prevTangent, radialHint);
+            if (widthAxis.sqrMagnitude < 0.0001f) widthAxis = Vector3.Cross(prevTangent, Vector3.right);
+            widthAxis.Normalize();
+            Vector3 thickAxis = Vector3.Cross(widthAxis, prevTangent).normalized;
+
+            if (Mathf.Abs(rollDeg) > 0.01f)
+            {
+                Quaternion roll = Quaternion.AngleAxis(rollDeg, prevTangent);
+                widthAxis = roll * widthAxis;
+                thickAxis = roll * thickAxis;
+            }
+
+            var rings = new List<Vector3[]>(steps + 1);
+            for (int s = 0; s <= steps; s++)
+            {
+                float t = s / (float)steps;
+                Vector3 tangent = s < steps
+                    ? (centers[Mathf.Min(steps, s + 1)] - centers[Mathf.Max(0, s - 1)]).normalized
+                    : (centers[steps] - centers[steps - 1]).normalized;
+
+                if (s > 0 && tangent.sqrMagnitude > 0.0001f)
+                {
+                    Quaternion rot = Quaternion.FromToRotation(prevTangent, tangent);
+                    widthAxis = (rot * widthAxis).normalized;
+                    thickAxis = Vector3.Cross(widthAxis, tangent).normalized;
+                    prevTangent = tangent;
+                }
+
+                // Plump anime lock silhouette tapering cleanly into a sharp hooked tip
+                float profile = s == steps
+                    ? 0.04f
+                    : Mathf.Sin(Mathf.Clamp01(1f - t * 0.92f) * Mathf.PI * 0.5f) * (1f + 0.18f * Mathf.Sin(t * Mathf.PI));
+                float w = Mathf.Max(0.002f, baseWidth * profile);
+                float h = Mathf.Max(0.0015f, baseThick * profile);
+
+                Vector3 c = centers[s];
+                rings.Add(new[]
+                {
+                    c + widthAxis * w,
+                    c + widthAxis * (0.38f * w) + thickAxis * h,
+                    c - widthAxis * (0.38f * w) + thickAxis * h,
+                    c - widthAxis * w,
+                    c - widthAxis * (0.38f * w) - thickAxis * (0.60f * h),
+                    c + widthAxis * (0.38f * w) - thickAxis * (0.60f * h),
+                });
+            }
+
+            AppendLoftedRings(verts, tris, rings, capStart: false, capEnd: true);
+        }
+
+        private static Vector3 EvaluateCatmullRom(Vector3[] pts, float u)
+        {
+            int n = pts.Length;
+            float scaled = Mathf.Clamp01(u) * (n - 1);
+            int seg = Mathf.Min(n - 2, Mathf.FloorToInt(scaled));
+            float t = scaled - seg;
+
+            Vector3 p0 = seg > 0 ? pts[seg - 1] : (2f * pts[0] - pts[1]);
+            Vector3 p1 = pts[seg];
+            Vector3 p2 = pts[seg + 1];
+            Vector3 p3 = seg + 2 < n ? pts[seg + 2] : (2f * pts[n - 1] - pts[n - 2]);
+
+            float t2 = t * t;
+            float t3 = t2 * t;
+            return 0.5f * (
+                (2f * p1) +
+                (-p0 + p2) * t +
+                (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
+                (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
         }
 
         private static void AppendClothPanelStrip(

@@ -6,8 +6,8 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Builds Star Platinum using the base bulked Valheim humanoid rigged model:
-    /// translucent purple musculature with golden shoulder pads, wrapped red scarf, black boots,
-    /// black gloves, golden Dvergr circlet, and Painter Curls black hair, with entrance VFX.
+    /// spectral purple musculature with dark forged-gold shoulder pads, waist belt, knee pads &amp; Dvergr circlet,
+    /// red neck scarf, light grey loincloth, black boots &amp; gloves, and swept-up spiky black anime mane.
     /// </summary>
     internal static class StarPlatinum
     {
@@ -169,14 +169,15 @@ namespace StandsOfValheim
                 if (baseModel.m_baseMaterial != null) bodyModel.material = new Material(baseModel.m_baseMaterial);
             }
 
-            // 4. Locate Head bone & Equip Golden Dvergr Circlet and Painter Curls Black Hair (no torso/leg plate armor)
+            // 4. Locate Head bone & Equip Golden Dvergr Circlet + swept-up Star Platinum spiky black mane
             var animator = visual.GetComponent<Animator>();
             Transform headBone = FindBone(bodyModel, visual, HumanBodyBones.Head, "Head");
+            Transform neckBone = FindBone(bodyModel, visual, HumanBodyBones.Neck, "Neck");
 
             if (headBone != null)
             {
-                EquipHeadPiece("HelmetDverger", headBone, visual, ownerVis);
-                EquipHair(bodyModel, headBone, visual);
+                GameObject circlet = EquipHeadPiece("HelmetDverger", headBone, visual, ownerVis);
+                StandEquipmentBuilder.AttachStarPlatinumHair(visual, headBone, neckBone, circlet);
             }
 
             // 5. Equip Star Platinum's custom outfit: golden shoulder pads, red scarf, white loincloth, black gloves, black boots
@@ -194,7 +195,7 @@ namespace StandsOfValheim
             follower.FistL = FindBone(bodyModel, visual, HumanBodyBones.LeftHand, "LeftHand");
             follower.FistR = FindBone(bodyModel, visual, HumanBodyBones.RightHand, "RightHand");
 
-            Plugin.Log?.LogInfo("StarPlatinum: Constructed Stand with dark forged-gold shoulder pads, belt, knee pads & circlet, neck red scarf, white loincloth, black boots & gloves, and Painter Curls hair.");
+            Plugin.Log?.LogInfo("StarPlatinum: Constructed Stand with dark forged-gold shoulder pads, belt, knee pads & circlet, neck red scarf, light grey loincloth, black boots & gloves, and swept-up spiky black mane.");
             return true;
         }
 
@@ -329,192 +330,6 @@ namespace StandsOfValheim
             return attached;
         }
 
-        private static GameObject EquipHair(SkinnedMeshRenderer bodyModel, Transform headBone, GameObject visualRoot)
-        {
-            if (ObjectDB.instance == null) return null;
-
-            // Preferred hair style: Painter Curls (Hair19) as requested
-            string[] preferredHairs = new string[]
-            {
-                "Hair19", // Painter Curls
-                "Hair14", // Long flowing locks fallback
-                "Hair16", // Long wild hair fallback
-                "Hair38", // Voluminous flowing hair fallback
-                "Hair11", // Wild Viking mane fallback
-                "Hair1"   // Classic long hair fallback
-            };
-
-            GameObject hairPrefab = null;
-            string selectedHairName = null;
-
-            // 1. Direct prefab lookup
-            foreach (var hName in preferredHairs)
-            {
-                var prefab = ObjectDB.instance.GetItemPrefab(hName);
-                if (prefab != null)
-                {
-                    hairPrefab = prefab;
-                    selectedHairName = hName == "Hair19" ? "Painter Curls (Hair19)" : hName;
-                    break;
-                }
-            }
-
-            // 2. Search by localization token ($customization_hair19) or name in customizations
-            if (hairPrefab == null)
-            {
-                var allHairs = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Customization, "Hair");
-                foreach (var h in allHairs)
-                {
-                    if (h == null) continue;
-                    if (h.name == "Hair19" || h.m_itemData?.m_shared?.m_name == "$customization_hair19")
-                    {
-                        hairPrefab = h.gameObject;
-                        selectedHairName = "Painter Curls (Hair19)";
-                        break;
-                    }
-                }
-            }
-
-            // 3. General fallback if specific ones not found
-            if (hairPrefab == null)
-            {
-                var allHairs = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Customization, "Hair");
-                foreach (var h in allHairs)
-                {
-                    if (h != null && !h.name.Contains("None") && !h.name.Contains("_"))
-                    {
-                        hairPrefab = h.gameObject;
-                        selectedHairName = h.name;
-                        break;
-                    }
-                }
-            }
-
-            if (hairPrefab == null)
-            {
-                Plugin.Log?.LogWarning("StarPlatinum: Could not find any Hair prefab in ObjectDB.");
-                return null;
-            }
-
-            Plugin.Log?.LogInfo($"StarPlatinum: Selected hair style '{selectedHairName}' for Star Platinum.");
-
-            GameObject hairObj = null;
-
-            // Check if prefab has attach_skin or attach
-            Transform attachSkin = null;
-            Transform attachJoint = null;
-
-            for (int i = 0; i < hairPrefab.transform.childCount; i++)
-            {
-                Transform child = hairPrefab.transform.GetChild(i);
-                if (child.name == "attach_skin" || child.name.StartsWith("attach_skin"))
-                {
-                    attachSkin = child;
-                    break;
-                }
-                if (child.name == "attach" || child.name.StartsWith("attach_") || child.name.StartsWith("attach"))
-                {
-                    attachJoint = child;
-                }
-            }
-
-            if (attachSkin != null)
-            {
-                // Skinned mesh hair rigged to player bones (standard Valheim hair)
-                Transform parent = bodyModel != null && bodyModel.transform.parent != null
-                    ? bodyModel.transform.parent
-                    : visualRoot.transform;
-
-                hairObj = UnityEngine.Object.Instantiate(attachSkin.gameObject, parent);
-                hairObj.name = "StandHair";
-                hairObj.SetActive(true);
-                hairObj.transform.localPosition = Vector3.zero;
-                hairObj.transform.localRotation = Quaternion.identity;
-                hairObj.transform.localScale = Vector3.one;
-
-                if (bodyModel != null)
-                {
-                    foreach (var smr in hairObj.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-                    {
-                        smr.rootBone = bodyModel.rootBone;
-                        smr.bones = bodyModel.bones;
-                        smr.updateWhenOffscreen = true;
-                    }
-                }
-            }
-            else if (attachJoint != null)
-            {
-                Transform targetJoint = headBone != null ? headBone : visualRoot.transform;
-                hairObj = UnityEngine.Object.Instantiate(attachJoint.gameObject, targetJoint);
-                hairObj.name = "StandHair";
-                hairObj.SetActive(true);
-                hairObj.transform.localPosition = Vector3.zero;
-                hairObj.transform.localRotation = Quaternion.identity;
-                hairObj.transform.localScale = Vector3.one;
-
-                Transform equipOffset = hairPrefab.transform.Find("equipoffset");
-                if (equipOffset != null)
-                {
-                    hairObj.transform.localPosition += equipOffset.localPosition;
-                    hairObj.transform.localRotation *= equipOffset.localRotation;
-                }
-            }
-            else
-            {
-                Transform targetJoint = headBone != null ? headBone : visualRoot.transform;
-                hairObj = UnityEngine.Object.Instantiate(hairPrefab, targetJoint);
-                hairObj.name = "StandHair";
-                hairObj.SetActive(true);
-                hairObj.transform.localPosition = Vector3.zero;
-                hairObj.transform.localRotation = Quaternion.identity;
-                hairObj.transform.localScale = Vector3.one;
-            }
-
-            if (hairObj == null) return null;
-
-            // Remove any cloth/physics components that conflict on stand
-            foreach (var comp in hairObj.GetComponentsInChildren<Component>(true))
-            {
-                if (comp == null) continue;
-                string typeName = comp.GetType().Name;
-                if (typeName.Contains("Cloth") || typeName.Contains("Collider") || typeName.Contains("WindShelter"))
-                {
-                    UnityEngine.Object.Destroy(comp);
-                }
-            }
-
-            // Apply solid pitch black hair color (both _SkinColor and _Color)
-            var block = new MaterialPropertyBlock();
-            block.SetColor(Shader.PropertyToID("_SkinColor"), HairColor);
-            block.SetColor(Shader.PropertyToID("_Color"), HairColor);
-
-            foreach (var r in hairObj.GetComponentsInChildren<Renderer>(true))
-            {
-                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                r.receiveShadows = false;
-                r.SetPropertyBlock(block);
-
-                if (r.materials != null)
-                {
-                    foreach (var mat in r.materials)
-                    {
-                        if (mat == null) continue;
-                        mat.color = HairColor;
-                        if (mat.HasProperty("_SkinColor")) mat.SetColor("_SkinColor", HairColor);
-                        if (mat.HasProperty("_Color")) mat.SetColor("_Color", HairColor);
-
-                        // Keep hair crisp and opaque
-                        mat.SetFloat("_Mode", 0f);
-                        mat.SetInt("_ZWrite", 1);
-                        mat.renderQueue = -1;
-                    }
-                }
-            }
-
-            Plugin.Log?.LogInfo($"StarPlatinum: Successfully attached black hair '{selectedHairName}'!");
-            return hairObj;
-        }
-
         private static bool HasNameInHierarchy(Transform current, Transform stopAt, params string[] keywords)
         {
             while (current != null && current != stopAt)
@@ -539,7 +354,7 @@ namespace StandsOfValheim
                 r.receiveShadows = false;
 
                 // Preserve dedicated opaque PBR materials built by StandEquipmentBuilder
-                if (HasNameInHierarchy(r.transform, visual.transform, "shoulderpad", "scarf", "glove", "boot", "loincloth", "belt", "kneepad"))
+                if (HasNameInHierarchy(r.transform, visual.transform, "shoulderpad", "scarf", "glove", "boot", "loincloth", "belt", "kneepad", "hairmane"))
                 {
                     continue;
                 }
