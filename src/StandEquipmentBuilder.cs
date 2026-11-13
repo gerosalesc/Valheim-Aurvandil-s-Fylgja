@@ -7,21 +7,25 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Builds Star Platinum's custom armor and accessories rigged onto the Stand's humanoid skeleton:
-    /// golden shoulder pads, wrapped crimson red scarf, black combat boots, black gauntlets/gloves,
-    /// and a golden forehead circlet, without heavy torso/leg armor covering his purple musculature.
+    /// golden shoulder pads, wrapped crimson red scarf, white loincloth, black combat boots, black
+    /// gauntlets/gloves, and a golden forehead circlet, without heavy torso/leg armor covering his
+    /// purple musculature.
     /// </summary>
     internal static class StandEquipmentBuilder
     {
-        public static readonly Color GoldArmorColor   = new Color(0.98f, 0.78f, 0.18f, 1.0f);
-        public static readonly Color GoldEmission     = new Color(0.32f, 0.22f, 0.02f);
-        public static readonly Color ScarfRedColor    = new Color(0.84f, 0.12f, 0.12f, 1.0f);
-        public static readonly Color ScarfEmission    = new Color(0.14f, 0.01f, 0.01f);
-        public static readonly Color LeatherBlackColor = new Color(0.07f, 0.07f, 0.09f, 1.0f);
-        public static readonly Color LeatherEmission  = new Color(0.02f, 0.01f, 0.04f);
+        public static readonly Color GoldArmorColor      = new Color(0.98f, 0.78f, 0.18f, 1.0f);
+        public static readonly Color GoldEmission        = new Color(0.32f, 0.22f, 0.02f);
+        public static readonly Color ScarfRedColor       = new Color(0.84f, 0.12f, 0.12f, 1.0f);
+        public static readonly Color ScarfEmission       = new Color(0.14f, 0.01f, 0.01f);
+        public static readonly Color LeatherBlackColor   = new Color(0.07f, 0.07f, 0.09f, 1.0f);
+        public static readonly Color LeatherEmission     = new Color(0.02f, 0.01f, 0.04f);
+        public static readonly Color LoinclothWhiteColor = new Color(0.95f, 0.94f, 0.98f, 1.0f);
+        public static readonly Color LoinclothEmission   = new Color(0.08f, 0.07f, 0.11f);
 
         private static Material s_goldMaterial;
         private static Material s_scarfMaterial;
         private static Material s_leatherBlackMaterial;
+        private static Material s_loinclothMaterial;
 
         public static void EquipStandOutfit(GameObject visual, SkinnedMeshRenderer bodyModel, Transform headBone, Func<HumanBodyBones, string, Transform> findBone)
         {
@@ -61,7 +65,15 @@ namespace StandsOfValheim
             AttachBoot(visual, leftLowerLeg, leftFoot, leftToes, "StandBoot_L");
             AttachBoot(visual, rightLowerLeg, rightFoot, rightToes, "StandBoot_R");
 
-            Plugin.Log?.LogInfo("StandEquipmentBuilder: Equipped golden shoulder pads, red scarf, black gloves, black boots, and golden circlet.");
+            // White Loincloth (wrapped waist sash + front & back panels anchored on Hips)
+            Transform hips       = findBone(HumanBodyBones.Hips, "Hips");
+            Transform spine      = findBone(HumanBodyBones.Spine, "Spine");
+            Transform leftThigh  = findBone(HumanBodyBones.LeftUpperLeg, "LeftUpLeg");
+            Transform rightThigh = findBone(HumanBodyBones.RightUpperLeg, "RightUpLeg");
+
+            AttachLoincloth(visual, hips, spine, leftThigh, rightThigh, leftLowerLeg);
+
+            Plugin.Log?.LogInfo("StandEquipmentBuilder: Equipped golden shoulder pads, red scarf, white loincloth, black gloves, black boots, and golden circlet.");
         }
 
         private static void AttachShoulderPad(GameObject visual, Transform upperArm, Transform lowerArm, Transform chest, bool isRight)
@@ -202,6 +214,46 @@ namespace StandsOfValheim
             PlaceAnchoredPiece(footGo, foot, foot.position, footRot);
         }
 
+        private static void AttachLoincloth(
+            GameObject visual,
+            Transform hips,
+            Transform spine,
+            Transform leftThigh,
+            Transform rightThigh,
+            Transform leftLowerLeg)
+        {
+            Transform parent = hips ?? visual.transform;
+            float scale = GetScaleFactor(visual);
+
+            Vector3 hipMid;
+            float halfHipSpan;
+            if (leftThigh != null && rightThigh != null)
+            {
+                hipMid = 0.5f * (leftThigh.position + rightThigh.position);
+                float span = Vector3.ProjectOnPlane(rightThigh.position - leftThigh.position, visual.transform.up).magnitude / scale;
+                halfHipSpan = Mathf.Clamp(span * 0.5f, 0.075f, 0.130f);
+            }
+            else
+            {
+                hipMid = parent.position;
+                halfHipSpan = 0.095f;
+            }
+
+            float thighLen = (leftThigh != null && leftLowerLeg != null)
+                ? Vector3.Distance(leftThigh.position, leftLowerLeg.position) / scale
+                : 0.40f;
+            thighLen = Mathf.Clamp(thighLen, 0.32f, 0.48f);
+
+            float hipToSpine = spine != null
+                ? Vector3.Dot(spine.position - hipMid, visual.transform.up) / scale
+                : 0.13f;
+            hipToSpine = Mathf.Clamp(hipToSpine, 0.09f, 0.18f);
+
+            Quaternion worldRot = Quaternion.LookRotation(visual.transform.forward, visual.transform.up);
+            var go = CreateGearObject("StandLoincloth", BuildLoinclothMesh(halfHipSpan, hipToSpine, thighLen), GetLoinclothMaterial());
+            PlaceAnchoredPiece(go, parent, hipMid, worldRot);
+        }
+
         private static float GetScaleFactor(GameObject visual)
         {
             float s = visual.transform.lossyScale.y;
@@ -257,6 +309,15 @@ namespace StandsOfValheim
                 s_leatherBlackMaterial = CreateCrispMaterial(LeatherBlackColor, metallic: 0.18f, glossiness: 0.44f, LeatherEmission);
             }
             return s_leatherBlackMaterial;
+        }
+
+        public static Material GetLoinclothMaterial()
+        {
+            if (s_loinclothMaterial == null)
+            {
+                s_loinclothMaterial = CreateCrispMaterial(LoinclothWhiteColor, metallic: 0.02f, glossiness: 0.18f, LoinclothEmission);
+            }
+            return s_loinclothMaterial;
         }
 
         public static void ApplyGoldTint(Material mat)
@@ -532,6 +593,194 @@ namespace StandsOfValheim
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        private static Mesh BuildLoinclothMesh(float halfHipSpan, float hipToSpine, float thighLen)
+        {
+            var mesh = new Mesh { name = "StandLoinclothMesh" };
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+
+            float waistY = Mathf.Clamp(hipToSpine * 0.54f, 0.048f, 0.088f);
+            float waistRx = halfHipSpan + 0.084f;
+            float hipRx = halfHipSpan + 0.090f;
+            float flapDrop = Mathf.Clamp(thighLen * 0.78f, 0.27f, 0.35f);
+
+            // 1. Two-layer folded white waist sash wrapping snugly around hips/pelvis
+            AppendWaistFoldLoop(verts, tris, waistRx, rz: 0.136f, zOffset: -0.006f, baseY: waistY + 0.024f, frontDip: 0.014f, rHoriz: 0.017f, rVert: 0.026f);
+            AppendWaistFoldLoop(verts, tris, hipRx,   rz: 0.142f, zOffset: -0.008f, baseY: waistY - 0.024f, frontDip: 0.018f, rHoriz: 0.019f, rVert: 0.036f);
+
+            // 2. Front folded sash overlap band where the front apron anchors
+            var sashTieStations = new (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[]
+            {
+                (waistY + 0.030f, 0.144f, 0.092f, 0.010f, -0.026f, 0.000f),
+                (waistY + 0.002f, 0.152f, 0.100f, 0.012f, -0.026f, 0.000f),
+                (waistY - 0.026f, 0.150f, 0.096f, 0.010f, -0.024f, 0.000f),
+            };
+            AppendClothPanelStrip(verts, tris, sashTieStations, arcSteps: 7, faceDir: +1f, pleatAmp: 0.002f);
+
+            // 3. Sculpted Front Loincloth Panel draping cleanly in front of thighs with V-point hem
+            var frontApron = new (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[]
+            {
+                (waistY + 0.010f,   0.146f, 0.088f, 0.008f, -0.024f, 0.000f),
+                (waistY - 0.038f,   0.154f, 0.096f, 0.009f, -0.022f, 0.000f),
+                (-0.040f,           0.160f, 0.100f, 0.009f, -0.018f, 0.000f),
+                (-flapDrop * 0.36f, 0.156f, 0.092f, 0.008f, -0.014f, 0.004f),
+                (-flapDrop * 0.68f, 0.154f, 0.086f, 0.007f, -0.010f, 0.010f),
+                (-flapDrop * 0.90f, 0.160f, 0.094f, 0.006f, -0.008f, 0.018f),
+                (-flapDrop,         0.164f, 0.082f, 0.005f, -0.006f, 0.028f),
+            };
+            AppendClothPanelStrip(verts, tris, frontApron, arcSteps: 7, faceDir: +1f, pleatAmp: 0.0035f);
+
+            // 4. Symmetric Back Loincloth Panel clearing glutes and draping behind upper thighs
+            var backApron = new (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[]
+            {
+                (waistY + 0.010f,   -0.148f, 0.090f, 0.008f, 0.024f, 0.000f),
+                (waistY - 0.038f,   -0.160f, 0.098f, 0.009f, 0.022f, 0.000f),
+                (-0.045f,           -0.168f, 0.104f, 0.009f, 0.018f, 0.000f),
+                (-flapDrop * 0.36f, -0.162f, 0.094f, 0.008f, 0.014f, 0.004f),
+                (-flapDrop * 0.68f, -0.158f, 0.088f, 0.007f, 0.010f, 0.010f),
+                (-flapDrop * 0.90f, -0.164f, 0.096f, 0.006f, 0.008f, 0.018f),
+                (-flapDrop,         -0.168f, 0.084f, 0.005f, 0.006f, 0.026f),
+            };
+            AppendClothPanelStrip(verts, tris, backApron, arcSteps: 7, faceDir: -1f, pleatAmp: 0.0035f);
+
+            // 5. Center crotch under-band joining front & back aprons neatly between inner thighs
+            float underHalfW = Mathf.Min(halfHipSpan * 0.48f, 0.046f);
+            var underBand = new List<Vector3[]>
+            {
+                CreateEllipseRing(new Vector3(0f, -0.020f,  0.134f), Vector3.right, new Vector3(0f, 0.7f, -0.7f).normalized, underHalfW * 1.25f, 0.011f, 8),
+                CreateEllipseRing(new Vector3(0f, -0.062f,  0.065f), Vector3.right, new Vector3(0f, 0.9f, -0.4f).normalized, underHalfW,         0.011f, 8),
+                CreateEllipseRing(new Vector3(0f, -0.074f, -0.005f), Vector3.right, Vector3.up,                              underHalfW * 0.85f, 0.011f, 8),
+                CreateEllipseRing(new Vector3(0f, -0.064f, -0.068f), Vector3.right, new Vector3(0f, 0.9f,  0.4f).normalized, underHalfW,         0.011f, 8),
+                CreateEllipseRing(new Vector3(0f, -0.020f, -0.142f), Vector3.right, new Vector3(0f, 0.7f,  0.7f).normalized, underHalfW * 1.28f, 0.011f, 8),
+            };
+            AppendLoftedRings(verts, tris, underBand, capStart: true, capEnd: true);
+
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static void AppendWaistFoldLoop(
+            List<Vector3> verts,
+            List<int> tris,
+            float rx,
+            float rz,
+            float zOffset,
+            float baseY,
+            float frontDip,
+            float rHoriz,
+            float rVert)
+        {
+            const int segs = 24;
+            const int tubeSegs = 8;
+            var rings = new List<Vector3[]>(segs);
+
+            for (int i = 0; i < segs; i++)
+            {
+                float theta = (i / (float)segs) * Mathf.PI * 2f;
+                float cx = rx * Mathf.Sin(theta);
+                float cz = zOffset + rz * Mathf.Cos(theta);
+                float cy = baseY - frontDip * Mathf.Cos(theta) + 0.004f * Mathf.Cos(theta * 3f);
+
+                Vector3 center = new Vector3(cx, cy, cz);
+                Vector3 radialOut = new Vector3(Mathf.Sin(theta), 0f, Mathf.Cos(theta)).normalized;
+                rings.Add(CreateEllipseRing(center, radialOut, Vector3.up, rHoriz, rVert, tubeSegs));
+            }
+
+            AppendClosedLoopTorus(verts, tris, rings);
+        }
+
+        private static void AppendClothPanelStrip(
+            List<Vector3> verts,
+            List<int> tris,
+            (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[] stations,
+            int arcSteps,
+            float faceDir,
+            float pleatAmp)
+        {
+            if (stations.Length < 2) return;
+
+            int ringSize = arcSteps * 2;
+            int baseVertIdx = verts.Count;
+
+            for (int s = 0; s < stations.Length; s++)
+            {
+                var st = stations[s];
+                var ring = new Vector3[ringSize];
+
+                // Outer face left-to-right (-X to +X)
+                for (int j = 0; j < arcSteps; j++)
+                {
+                    float u = (j / (float)(arcSteps - 1)) * 2f - 1f;
+                    float x = u * st.xHalfWidth;
+                    float y = st.y - st.vTipDrop * (1f - Mathf.Abs(u));
+                    float pleat = pleatAmp * Mathf.Cos(u * Mathf.PI * 2f);
+                    float z = st.zCenter + st.bowZ * (u * u) + faceDir * (st.halfThick + pleat);
+                    ring[j] = new Vector3(x, y, z);
+                }
+
+                // Inner face returning right-to-left (+X to -X)
+                for (int j = 0; j < arcSteps; j++)
+                {
+                    float u = 1f - (j / (float)(arcSteps - 1)) * 2f;
+                    float x = u * st.xHalfWidth * 0.94f;
+                    float y = st.y - st.vTipDrop * (1f - Mathf.Abs(u));
+                    float z = st.zCenter + st.bowZ * (u * u) - faceDir * st.halfThick;
+                    ring[arcSteps + j] = new Vector3(x, y, z);
+                }
+
+                verts.AddRange(ring);
+            }
+
+            Vector3 outerHint = new Vector3(0f, 0f, faceDir);
+            Vector3 innerHint = new Vector3(0f, 0f, -faceDir);
+
+            for (int r = 0; r < stations.Length - 1; r++)
+            {
+                int rowA = baseVertIdx + r * ringSize;
+                int rowB = baseVertIdx + (r + 1) * ringSize;
+
+                for (int i = 0; i < ringSize; i++)
+                {
+                    int next = (i + 1) % ringSize;
+                    int a = rowA + i;
+                    int b = rowA + next;
+                    int c = rowB + next;
+                    int d = rowB + i;
+
+                    Vector3 hint;
+                    if (i < arcSteps - 1) hint = outerHint;
+                    else if (i == arcSteps - 1) hint = Vector3.right;
+                    else if (i < ringSize - 1) hint = innerHint;
+                    else hint = Vector3.left;
+
+                    EmitTriangleOutward(verts, tris, a, b, c, hint);
+                    EmitTriangleOutward(verts, tris, a, c, d, hint);
+                }
+            }
+
+            // Bridge fabric thickness cleanly across top & bottom hems (avoids pinched/concave center fan)
+            int lastRowOffset = baseVertIdx + (stations.Length - 1) * ringSize;
+            for (int j = 0; j < arcSteps - 1; j++)
+            {
+                int topF0 = baseVertIdx + j;
+                int topF1 = baseVertIdx + j + 1;
+                int topB0 = baseVertIdx + (ringSize - 1 - j);
+                int topB1 = baseVertIdx + (ringSize - 2 - j);
+                EmitTriangleOutward(verts, tris, topF0, topF1, topB1, Vector3.up);
+                EmitTriangleOutward(verts, tris, topF0, topB1, topB0, Vector3.up);
+
+                int botF0 = lastRowOffset + j;
+                int botF1 = lastRowOffset + j + 1;
+                int botB0 = lastRowOffset + (ringSize - 1 - j);
+                int botB1 = lastRowOffset + (ringSize - 2 - j);
+                EmitTriangleOutward(verts, tris, botF0, botB1, botF1, Vector3.down);
+                EmitTriangleOutward(verts, tris, botF0, botB0, botB1, Vector3.down);
+            }
         }
 
         // ----------------------------------------------------------------------

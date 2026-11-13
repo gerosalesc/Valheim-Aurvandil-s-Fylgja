@@ -4,7 +4,7 @@ BepInEx mod for Valheim adding JoJo Stands. Currently featuring: **Star Platinum
 
 ## Features
 - **Forsaken Power Integration:** Equipped via `devcommands` and triggered with the `F` key (60s active duration, 60s cooldown), respecting native HUD slots and power cooldowns.
-- **Stand Visuals:** Translucent purple muscular humanoid Stand wearing golden shoulder pads, a wrapped red scarf, black combat boots, black gloves, a golden circlet, Painter Curls black hair, and a glowing purple Stand aura.
+- **Stand Visuals:** Translucent purple muscular humanoid Stand wearing golden shoulder pads, a wrapped red scarf, a white loincloth, black combat boots, black gloves, a golden circlet, Painter Curls black hair, and a glowing purple Stand aura.
 - **Stand Actions (Hands-Free Requirement):** Stand combat actions (Single Punch, ORA Barrage, and Stand Shield Block) only trigger when the player's hands are free (unarmed or with weapons sheathed via `R`). When weapons or shields are equipped in hand, normal weapon/shield actions take precedence.
 - **Primary Attack (Stand Single Punch):** With hands free, press **Left Mouse Button** for a fast single punch from Star Platinum (1 hit, no ORA voice cry, 5 stamina).
 - **Secondary Attack (ORA Barrage):** With hands free, press **Middle Mouse Button** to trigger a **5-hit ORA ORA ORA** punch barrage (16 stamina).
