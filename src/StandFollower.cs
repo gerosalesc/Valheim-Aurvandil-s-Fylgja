@@ -5,11 +5,25 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Controls Star Platinum's movement, idle hovering over the player's shoulder,
-    /// defensive shield positioning when blocking, and executing the rapid dual-fist ORA punch barrage.
+    /// defensive shield positioning when blocking, single-punch strikes, and the rapid ORA punch barrage.
     /// Faces the direction the player is facing (independent of camera).
     /// </summary>
     internal class StandFollower : MonoBehaviour
     {
+        internal enum AttackStartStatus
+        {
+            Started,
+            Busy,
+            Unavailable
+        }
+
+        private enum AttackMode
+        {
+            None,
+            SinglePunch,
+            Barrage
+        }
+
         public Player Owner;
 
         // Limb / bone transforms
@@ -35,30 +49,51 @@ namespace StandsOfValheim
         private float _entranceDuration = 0.7f;
         private Vector3 _targetScale = new Vector3(1.22f, 1.22f, 1.22f);
 
-        // Attack state (Hit-limited: 5 punches per barrage, consumes user stamina)
-        public bool IsAttacking { get; private set; }
+        // Barrage tuning (Hit-limited: 5 punches per trigger)
         public const int MaxPunchesPerBarrage = 5;
+        private const float BarrageStaminaCost = 16f;
+        private const float BarrageDuration = 0.85f;
+        private const float BarrageFirstHitDelay = 0.04f;
+        private const float BarrageHitInterval = 0.12f;
+        private const float BarrageAnimInterval = 0.14f;
+        private const float BarrageAnimSpeed = 3.2f;
+        private const float BarrageCooldown = 0.25f;
+
+        // Single-punch tuning (1 hit, silent, fast left-click trigger)
+        private const float SinglePunchStaminaCost = 5f;
+        private const float SinglePunchDuration = 0.34f;
+        private const float SinglePunchHitDelay = 0.10f;
+        private const float SinglePunchAnimSpeed = 2.0f;
+        private const float SinglePunchCooldown = 0.06f;
+        private const float SingleComboResetWindow = 0.90f;
+
+        // Attack state
+        public bool IsAttacking { get; private set; }
+        private AttackMode _attackMode = AttackMode.None;
+        private AttackMode _lastCompletedMode = AttackMode.None;
         private int _punchesRemaining = 0;
         private float _attackTimer = 0f;
         private float _punchAnimTime = 0f;
         private float _nextPunchDamageTime = 0f;
         private float _nextPunchAnimTriggerTime = 0f;
-        private float _staminaCost = 16f; // Stamina cost per 5-punch barrage
         private float _cooldownTimer = 0f;
 
         // Player unarmed animation parameters
         private string _punchAnimBase = "unarmed_attack";
         private int _punchChainLevels = 3;
-        private int _punchIndex = 0;
+        private int _barragePunchIndex = 0;
+        private int _singleComboIndex = 0;
+        private float _lastSinglePunchTime = -10f;
         private string _lastTrigger = null;
 
         // Block reaction state
         private float _blockReactionTimer = 0f;
         private bool _isParryReaction = false;
 
-        // Animator parameter hashes
+        // Animator parameter cache
         private int _blockingParamHash = 0;
         private bool _hasBlockingParam = false;
+        private readonly HashSet<string> _animParamNames = new HashSet<string>();
 
         private void Start()
         {
@@ -81,6 +116,7 @@ namespace StandsOfValheim
             {
                 foreach (var p in StandAnimator.parameters)
                 {
+                    _animParamNames.Add(p.name);
                     if (p.name == "blocking")
                     {
                         _hasBlockingParam = true;
@@ -113,18 +149,6 @@ namespace StandsOfValheim
                 {
                     Aura.intensity = Mathf.Lerp(4.5f, 1.4f, progress);
                     Aura.range = Mathf.Lerp(6.0f, 4.2f, progress);
-                }
-            }
-
-            // Secondary attack input check for local player (hands must be free)
-            if (Owner == Player.m_localPlayer)
-            {
-                bool secInput = ZInput.GetButton("SecondaryAttack") || ZInput.GetButton("JoySecondaryAttack") ||
-                                ZInput.GetButtonDown("SecondaryAttack") || ZInput.GetButtonDown("JoySecondaryAttack");
-
-                if (secInput && !IsAttacking && StandManager.AreHandsFree(Owner))
-                {
-                    TryStartAttack();
                 }
             }
 
@@ -192,92 +216,130 @@ namespace StandsOfValheim
             }
         }
 
-        public bool TryStartAttack()
-        {
-            if (Owner == null || IsAttacking || !StandManager.AreHandsFree(Owner)) return false;
-            if (_cooldownTimer > 0f) return false;
+        public AttackStartStatus TryStartAttack(bool allowStaminaFlash = true) =>
+            TryBeginAttack(AttackMode.Barrage, allowStaminaFlash);
 
-            // Stamina check: barrage consumes player stamina
-            if (Owner.HaveStamina(_staminaCost))
+        public AttackStartStatus TryStartSinglePunch(bool allowStaminaFlash = true) =>
+            TryBeginAttack(AttackMode.SinglePunch, allowStaminaFlash);
+
+        private AttackStartStatus TryBeginAttack(AttackMode mode, bool allowStaminaFlash)
+        {
+            if (Owner == null || !StandManager.AreHandsFree(Owner))
             {
-                Owner.UseStamina(_staminaCost);
+                return AttackStartStatus.Unavailable;
+            }
+
+            if (mode == AttackMode.SinglePunch)
+            {
+                if (IsAttacking || _cooldownTimer > 0f) return AttackStartStatus.Busy;
+            }
+            else if (mode == AttackMode.Barrage)
+            {
+                if (IsAttacking && _attackMode == AttackMode.Barrage) return AttackStartStatus.Busy;
+                if (_lastCompletedMode == AttackMode.Barrage && _cooldownTimer > 0f) return AttackStartStatus.Busy;
+            }
+
+            float staminaCost = (mode == AttackMode.Barrage) ? BarrageStaminaCost : SinglePunchStaminaCost;
+            if (!Owner.HaveStamina(staminaCost))
+            {
+                if (allowStaminaFlash && Hud.instance != null)
+                {
+                    Hud.instance.StaminaBarEmptyFlash();
+                }
+                return AttackStartStatus.Unavailable;
+            }
+
+            // Allow an incoming barrage to cancel out of a completed/recovering single punch cleanly
+            if (IsAttacking && _attackMode == AttackMode.SinglePunch && mode == AttackMode.Barrage)
+            {
+                StopAttack();
+            }
+
+            Owner.UseStamina(staminaCost);
+
+            IsAttacking = true;
+            _attackMode = mode;
+            _punchAnimTime = 0f;
+            _lastTrigger = null;
+
+            if (mode == AttackMode.Barrage)
+            {
+                _punchesRemaining = MaxPunchesPerBarrage;
+                _attackTimer = BarrageDuration;
+                _barragePunchIndex = 1; // 0 triggered immediately below
+                _nextPunchDamageTime = Time.time + BarrageFirstHitDelay;
+                _nextPunchAnimTriggerTime = BarrageAnimInterval;
+
+                TriggerPunchAnim(BarrageAnimSpeed, 0);
+
+                if (StandAudio != null && SoundManager.OraClip != null)
+                {
+                    StandAudio.clip = SoundManager.OraClip;
+                    StandAudio.time = 0f;
+                    StandAudio.loop = true;
+                    StandAudio.Play();
+                }
+
+                if (MessageHud.instance != null)
+                {
+                    MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, "★ STAR PLATINUM: ORA ORA ORA! ★");
+                }
+
+                Plugin.Log?.LogInfo("Star Platinum: 5-hit ORA barrage activated!");
             }
             else
             {
-                if (Hud.instance != null) Hud.instance.StaminaBarEmptyFlash();
-                return false;
+                _punchesRemaining = 1;
+                _attackTimer = SinglePunchDuration;
+                _nextPunchDamageTime = Time.time + SinglePunchHitDelay;
+
+                if (Time.time - _lastSinglePunchTime > SingleComboResetWindow)
+                {
+                    _singleComboIndex = 0;
+                }
+
+                int comboIdx = _singleComboIndex;
+                _singleComboIndex = (_singleComboIndex + 1) % Mathf.Max(1, _punchChainLevels);
+
+                TriggerPunchAnim(SinglePunchAnimSpeed, comboIdx);
+
+                // Ensure no ORA shout plays for single punches
+                if (StandAudio != null && StandAudio.isPlaying)
+                {
+                    StandAudio.Stop();
+                }
             }
 
-            IsAttacking = true;
-            _punchesRemaining = MaxPunchesPerBarrage; // exactly 5 hits per trigger
-            _attackTimer = 0.85f; // safety timeout for the 5 hits
-            _punchAnimTime = 0f;
-            _punchIndex = 0;
-            _lastTrigger = null;
-            _nextPunchDamageTime = Time.time + 0.04f; // first punch starts right away
-            _nextPunchAnimTriggerTime = 0f;
-
-            // Trigger initial accelerated punch animation
-            TriggerPunchAnim();
-
-            // Play ORA barrage sound
-            if (StandAudio != null && SoundManager.OraClip != null)
-            {
-                StandAudio.clip = SoundManager.OraClip;
-                StandAudio.time = 0f;
-                StandAudio.loop = true;
-                StandAudio.Play();
-            }
-
-            if (MessageHud.instance != null)
-            {
-                MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, "★ STAR PLATINUM: ORA ORA ORA! ★");
-            }
-
-            Plugin.Log?.LogInfo("Star Platinum: 5-hit ORA barrage activated!");
-            return true;
+            return AttackStartStatus.Started;
         }
 
-        private void TriggerPunchAnim()
+        private void TriggerPunchAnim(float speed, int chainIdx)
         {
             if (StandAnimator == null) return;
 
-            // Accelerated animation speed for rapid punches (3.2x)
-            StandAnimator.speed = 3.2f;
+            StandAnimator.speed = speed;
 
             // Ensure unarmed animation state (0 = Unarmed)
-            if (HasParameter(StandAnimator, "statef")) StandAnimator.SetFloat("statef", 0f);
-            if (HasParameter(StandAnimator, "statei")) StandAnimator.SetInteger("statei", 0);
+            if (HasParameter("statef")) StandAnimator.SetFloat("statef", 0f);
+            if (HasParameter("statei")) StandAnimator.SetInteger("statei", 0);
 
             // Determine punch trigger based on player's unarmed attack
             string baseAnim = !string.IsNullOrEmpty(_punchAnimBase) ? _punchAnimBase : "unarmed_attack";
-
-            // Cycle through punch chain: 0 (left), 1 (right), and 2 (finisher)
-            string triggerName;
-            if (_punchChainLevels > 1)
-            {
-                int chainIdx = (_punchIndex < 4) ? (_punchIndex % 2) : 2; // 0, 1, 0, 1, 2
-                triggerName = baseAnim + chainIdx;
-            }
-            else
-            {
-                triggerName = baseAnim;
-            }
-            _punchIndex++;
+            string triggerName = (_punchChainLevels > 1) ? (baseAnim + chainIdx) : baseAnim;
 
             // Reset previous trigger if any to allow rapid retriggering
-            if (!string.IsNullOrEmpty(_lastTrigger) && HasParameter(StandAnimator, _lastTrigger))
+            if (!string.IsNullOrEmpty(_lastTrigger) && HasParameter(_lastTrigger))
             {
                 StandAnimator.ResetTrigger(_lastTrigger);
             }
 
             // Set new trigger
-            if (HasParameter(StandAnimator, triggerName))
+            if (HasParameter(triggerName))
             {
                 StandAnimator.SetTrigger(triggerName);
                 _lastTrigger = triggerName;
             }
-            else if (HasParameter(StandAnimator, baseAnim))
+            else if (HasParameter(baseAnim))
             {
                 StandAnimator.SetTrigger(baseAnim);
                 _lastTrigger = baseAnim;
@@ -299,15 +361,8 @@ namespace StandsOfValheim
             }
         }
 
-        private static bool HasParameter(Animator animator, string paramName)
-        {
-            if (animator == null || string.IsNullOrEmpty(paramName)) return false;
-            foreach (var p in animator.parameters)
-            {
-                if (p.name == paramName) return true;
-            }
-            return false;
-        }
+        private bool HasParameter(string paramName) =>
+            !string.IsNullOrEmpty(paramName) && _animParamNames.Contains(paramName);
 
         public void OnBlockHit(bool isParry)
         {
@@ -346,31 +401,45 @@ namespace StandsOfValheim
             // Stand faces the direction the player is facing (independent of camera)
             transform.rotation = Quaternion.Slerp(transform.rotation, t.rotation, Smooth * 1.5f * Time.deltaTime);
 
-            // Subtle flurry recoil forward with punches
-            transform.position += transform.forward * (Mathf.Abs(Mathf.Sin(_punchAnimTime * 28f)) * 0.06f);
-
-            // Cycle punch animation rapidly
-            if (_punchAnimTime >= _nextPunchAnimTriggerTime)
+            if (_attackMode == AttackMode.Barrage)
             {
-                _nextPunchAnimTriggerTime = _punchAnimTime + 0.14f;
-                TriggerPunchAnim();
-            }
+                // Subtle flurry recoil forward with punches
+                transform.position += transform.forward * (Mathf.Abs(Mathf.Sin(_punchAnimTime * 28f)) * 0.06f);
 
-            // Punch damage tick every ~0.12s, strictly limited to 5 hits per trigger
-            if (Time.time >= _nextPunchDamageTime && _punchesRemaining > 0)
-            {
-                _nextPunchDamageTime = Time.time + 0.12f;
-                _punchesRemaining--;
-                PerformPunchHit();
-
-                if (_punchesRemaining <= 0)
+                // Cycle punch animation rapidly across the 5 hits (0, 1, 0, 1, 2)
+                if (_punchAnimTime >= _nextPunchAnimTriggerTime)
                 {
-                    StopAttack();
-                    return;
+                    _nextPunchAnimTriggerTime = _punchAnimTime + BarrageAnimInterval;
+                    int chainIdx = (_barragePunchIndex < 4) ? (_barragePunchIndex % 2) : 2;
+                    _barragePunchIndex++;
+                    TriggerPunchAnim(BarrageAnimSpeed, chainIdx);
+                }
+
+                // Punch damage tick every ~0.12s, strictly limited to 5 hits per trigger
+                if (Time.time >= _nextPunchDamageTime && _punchesRemaining > 0)
+                {
+                    _nextPunchDamageTime = Time.time + BarrageHitInterval;
+                    _punchesRemaining--;
+                    PerformPunchHit();
+
+                    if (_punchesRemaining <= 0)
+                    {
+                        StopAttack();
+                        return;
+                    }
+                }
+            }
+            else if (_attackMode == AttackMode.SinglePunch)
+            {
+                // Single punch connects once on extension, then lets follow-through finish cleanly
+                if (Time.time >= _nextPunchDamageTime && _punchesRemaining > 0)
+                {
+                    _punchesRemaining--;
+                    PerformPunchHit();
                 }
             }
 
-            // Safety timeout
+            // Completion / safety timeout
             if (_attackTimer <= 0f)
             {
                 StopAttack();
@@ -379,14 +448,21 @@ namespace StandsOfValheim
 
         private void StopAttack()
         {
+            if (_attackMode == AttackMode.SinglePunch)
+            {
+                _lastSinglePunchTime = Time.time;
+            }
+
+            _lastCompletedMode = _attackMode;
+            _cooldownTimer = (_attackMode == AttackMode.Barrage) ? BarrageCooldown : SinglePunchCooldown;
+            _attackMode = AttackMode.None;
             IsAttacking = false;
             _punchesRemaining = 0;
-            _cooldownTimer = 0.25f;
 
             if (StandAnimator != null)
             {
                 StandAnimator.speed = 1.0f;
-                if (!string.IsNullOrEmpty(_lastTrigger) && HasParameter(StandAnimator, _lastTrigger))
+                if (!string.IsNullOrEmpty(_lastTrigger) && HasParameter(_lastTrigger))
                 {
                     StandAnimator.ResetTrigger(_lastTrigger);
                 }

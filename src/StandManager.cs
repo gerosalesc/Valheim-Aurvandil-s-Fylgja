@@ -39,19 +39,21 @@ namespace StandsOfValheim
             Plugin.Log?.LogInfo($"StandManager: Star Platinum dismissed for {p.GetPlayerName()}");
         }
 
-        public static bool TriggerAttack(Player p)
+        public static StandFollower.AttackStartStatus TriggerAttack(Player p, bool secondary = true, bool allowStaminaFlash = true)
         {
-            if (!AreHandsFree(p)) return false;
+            if (!AreHandsFree(p)) return StandFollower.AttackStartStatus.Unavailable;
 
             if (Active.TryGetValue(p, out var go) && go != null)
             {
                 var follower = go.GetComponent<StandFollower>();
                 if (follower != null)
                 {
-                    return follower.TryStartAttack();
+                    return secondary
+                        ? follower.TryStartAttack(allowStaminaFlash)
+                        : follower.TryStartSinglePunch(allowStaminaFlash);
                 }
             }
-            return false;
+            return StandFollower.AttackStartStatus.Unavailable;
         }
 
         public static void TriggerBlockReaction(Player p, bool isParry)
