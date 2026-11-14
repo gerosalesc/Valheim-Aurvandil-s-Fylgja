@@ -7,16 +7,19 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Registers the custom Star Platinum Sacrificial Stone prefab ("BossStone_StarPlatinum"),
-    /// customizes its 3D mesh, textures, cosmic glow, and ItemStand hook for TrophyFallenValkyrie,
+    /// Registers the custom Aurvandil's Fylgja Sacrificial Stone prefab ("BossStone_AurvandilsFylgja"),
+    /// customizes its 3D mesh, textures, cosmic glow, RuneStone inscription, and ItemStand hook for TrophyFallenValkyrie,
     /// and ensures it spawns on the StartTemple circle in both new and existing worlds.
     /// </summary>
     internal static class SacrificialStoneManager
     {
-        public const string PrefabName = "BossStone_StarPlatinum";
+        public const string PrefabName = "BossStone_AurvandilsFylgja";
+        public const string LegacyPrefabName = "BossStone_StarPlatinum";
         public const string BaseStonePrefabName = "BossStone_Yagluth";
         public const string TrophyPrefabName = "TrophyFallenValkyrie";
-        public const string StoneWorldKey = "defeated_fallenvalkyrie_sp";
+        public const string StoneWorldKey = "defeated_fallenvalkyrie_af";
+        public const string StoneInscriptionText =
+            "Hang the head of she who fell from the sky upon the star monolith. Purify her spirit and awaken the Fylgja of Aurvandil: an astral guardian whose fists strike faster than star light.";
 
         private static GameObject s_prefabContainer;
         private static GameObject s_stonePrefab;
@@ -35,6 +38,7 @@ namespace StandsOfValheim
             try
             {
                 int hash = PrefabName.GetStableHashCode();
+                int legacyHash = LegacyPrefabName.GetStableHashCode();
                 var namedPrefabs = AccessTools.Field(typeof(ZNetScene), "m_namedPrefabs")?.GetValue(zns) as Dictionary<int, GameObject>;
 
                 if (s_stonePrefab != null)
@@ -43,7 +47,11 @@ namespace StandsOfValheim
                     {
                         zns.m_prefabs.Add(s_stonePrefab);
                     }
-                    if (namedPrefabs != null) namedPrefabs[hash] = s_stonePrefab;
+                    if (namedPrefabs != null)
+                    {
+                        namedPrefabs[hash] = s_stonePrefab;
+                        namedPrefabs[legacyHash] = s_stonePrefab;
+                    }
                     ConfigureStoneInstance(s_stonePrefab);
                     return;
                 }
@@ -71,9 +79,9 @@ namespace StandsOfValheim
                 s_stonePrefab.transform.localPosition = Vector3.zero;
                 s_stonePrefab.transform.localRotation = Quaternion.identity;
 
-                if (s_stonePrefab.GetComponent<StarPlatinumBossStone>() == null)
+                if (s_stonePrefab.GetComponent<AurvandilsFylgjaBossStone>() == null)
                 {
-                    s_stonePrefab.AddComponent<StarPlatinumBossStone>();
+                    s_stonePrefab.AddComponent<AurvandilsFylgjaBossStone>();
                 }
 
                 ConfigureStoneInstance(s_stonePrefab);
@@ -82,7 +90,11 @@ namespace StandsOfValheim
                 {
                     zns.m_prefabs.Add(s_stonePrefab);
                 }
-                if (namedPrefabs != null) namedPrefabs[hash] = s_stonePrefab;
+                if (namedPrefabs != null)
+                {
+                    namedPrefabs[hash] = s_stonePrefab;
+                    namedPrefabs[legacyHash] = s_stonePrefab;
+                }
 
                 Plugin.Log?.LogInfo($"SacrificialStoneManager: Registered '{PrefabName}' in ZNetScene.");
             }
@@ -101,14 +113,14 @@ namespace StandsOfValheim
                     ConfigureStoneInstance(s_stonePrefab);
                 }
 
-                var activeStones = UnityEngine.Object.FindObjectsByType<StarPlatinumBossStone>(FindObjectsSortMode.None);
+                var activeStones = UnityEngine.Object.FindObjectsByType<AurvandilsFylgjaBossStone>(FindObjectsSortMode.None);
                 if (activeStones != null)
                 {
-                    foreach (var spStone in activeStones)
+                    foreach (var afStone in activeStones)
                     {
-                        if (spStone != null)
+                        if (afStone != null)
                         {
-                            ConfigureStoneInstance(spStone.gameObject);
+                            ConfigureStoneInstance(afStone.gameObject);
                         }
                     }
                 }
@@ -119,12 +131,14 @@ namespace StandsOfValheim
             }
         }
 
-        public static bool IsStarPlatinumStone(BossStone stone)
+        public static bool IsAurvandilsFylgjaStone(BossStone stone)
         {
             if (stone == null) return false;
-            if (stone.GetComponent<StarPlatinumBossStone>() != null) return true;
+            if (stone.GetComponent<AurvandilsFylgjaBossStone>() != null) return true;
             string n = stone.gameObject.name;
-            return !string.IsNullOrEmpty(n) && n.StartsWith(PrefabName, StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(n)) return false;
+            return n.StartsWith(PrefabName, StringComparison.OrdinalIgnoreCase) ||
+                   n.StartsWith(LegacyPrefabName, StringComparison.OrdinalIgnoreCase);
         }
 
         public static void ConfigureStoneInstance(GameObject stoneRoot)
@@ -134,21 +148,39 @@ namespace StandsOfValheim
             var bossStone = stoneRoot.GetComponent<BossStone>();
             if (bossStone == null) return;
 
-            if (stoneRoot.GetComponent<StarPlatinumBossStone>() == null)
+            if (stoneRoot.GetComponent<AurvandilsFylgjaBossStone>() == null)
             {
-                stoneRoot.AddComponent<StarPlatinumBossStone>();
+                stoneRoot.AddComponent<AurvandilsFylgjaBossStone>();
             }
 
-            // 1. Configure BossStone & ItemStand gameplay properties
-            bossStone.m_completedMessage = "You have offered the Fallen Valkyrie. Star Platinum awaits!";
+            // 1. Configure BossStone, RuneStone inscription, & ItemStand gameplay properties
+            bossStone.m_completedMessage = "You have offered the Fallen Valkyrie. Aurvandil's Fylgja awaits!";
             bossStone.m_setsWorldKey = StoneWorldKey;
             bossStone.m_activeEmissiveColor = ActiveEmissiveColor;
+
+            var runeStones = stoneRoot.GetComponentsInChildren<RuneStone>(true);
+            if (runeStones != null)
+            {
+                foreach (var runeStone in runeStones)
+                {
+                    if (runeStone == null) continue;
+                    runeStone.m_name = "$guardianstone_name";
+                    runeStone.m_text = StoneInscriptionText;
+                    runeStone.m_topic = "";
+                    runeStone.m_label = "Aurvandil's Fylgja";
+                    runeStone.m_pinName = "";
+                    if (runeStone.m_randomTexts != null)
+                    {
+                        runeStone.m_randomTexts.Clear();
+                    }
+                }
+            }
 
             var itemStand = bossStone.m_itemStand ?? stoneRoot.GetComponentInChildren<ItemStand>(true);
             if (itemStand != null)
             {
                 bossStone.m_itemStand = itemStand;
-                itemStand.m_name = "Star Platinum Sacrificial Stone";
+                itemStand.m_name = "Aurvandil's Fylgja Sacrificial Stone";
                 itemStand.m_canBeRemoved = false;
                 itemStand.m_autoAttach = true;
 
@@ -159,14 +191,14 @@ namespace StandsOfValheim
                     itemStand.m_supportedTypes = new List<ItemDrop.ItemData.ItemType>();
                 }
 
-                var guardianPower = ResolveStarPlatinumStatusEffect();
+                var guardianPower = ResolveAurvandilsFylgjaStatusEffect();
                 if (guardianPower != null)
                 {
                     itemStand.m_guardianPower = guardianPower;
                 }
             }
 
-            // 2. Apply custom 3D mesh (side-hung chains + central hook) and high-res Star Platinum stone material
+            // 2. Apply custom 3D mesh (side-hung chains + central hook) and high-res Aurvandil's Fylgja stone material
             ApplyStoneVisuals(bossStone);
         }
 
@@ -200,16 +232,16 @@ namespace StandsOfValheim
             return null;
         }
 
-        private static StatusEffect ResolveStarPlatinumStatusEffect()
+        private static StatusEffect ResolveAurvandilsFylgjaStatusEffect()
         {
             if (ObjectDB.instance == null) return null;
 
-            var se = ObjectDB.instance.GetStatusEffect(SE_StarPlatinum.EffectName.GetStableHashCode());
+            var se = ObjectDB.instance.GetStatusEffect(SE_AurvandilsFylgja.EffectName.GetStableHashCode());
             if (se != null) return se;
 
             if (ObjectDB.instance.m_StatusEffects != null)
             {
-                return ObjectDB.instance.m_StatusEffects.Find(s => s != null && s.name == SE_StarPlatinum.EffectName);
+                return ObjectDB.instance.m_StatusEffects.Find(s => s != null && s.name == SE_AurvandilsFylgja.EffectName);
             }
 
             return null;
@@ -252,7 +284,8 @@ namespace StandsOfValheim
                 }
 
                 // Remove any legacy custom point light so only the vanilla BossStone active_effects aura is used
-                Transform frontLightTr = bossStone.transform.Find("StarPlatinumStoneLight");
+                Transform frontLightTr = bossStone.transform.Find("AurvandilsFylgjaStoneLight") ??
+                                         bossStone.transform.Find("StarPlatinumStoneLight");
                 if (frontLightTr != null)
                 {
                     UnityEngine.Object.Destroy(frontLightTr.gameObject);
@@ -267,14 +300,14 @@ namespace StandsOfValheim
         /// <summary>
         /// Clones the BossStone_Yagluth mesh, keeping SubMesh 0 (stone monolith) and the central 3D trophy hook
         /// intact while shifting the two diagonal V-chains in SubMesh 1 out to hang vertically along the left
-        /// and right outer edges of the stone so Star Platinum's carving on the front face is completely unobstructed.
+        /// and right outer edges of the stone so Aurvandil's Fylgja's carving on the front face is completely unobstructed.
         /// </summary>
         private static Mesh BuildCustomStoneMesh(Mesh origMesh)
         {
             try
             {
                 Mesh mesh = UnityEngine.Object.Instantiate(origMesh);
-                mesh.name = "BossStone_StarPlatinum_Mesh";
+                mesh.name = "BossStone_AurvandilsFylgja_Mesh";
 
                 Vector3[] verts = mesh.vertices;
                 if (verts != null && verts.Length > 110 && mesh.subMeshCount >= 2)
@@ -352,7 +385,7 @@ namespace StandsOfValheim
         }
 
         /// <summary>
-        /// Builds a 1024x1024 custom stone material from bossstone_yagluth_mat with the Star Platinum
+        /// Builds a 1024x1024 custom stone material from bossstone_yagluth_mat with the Aurvandil's Fylgja
         /// runic carving, 8-pointed Y star, horizontal iron bands, and glowing purple/gold cosmic nebula
         /// mapped onto the front stone face anchored to the 3D trophy hook.
         /// </summary>
@@ -361,7 +394,7 @@ namespace StandsOfValheim
             try
             {
                 Material mat = new Material(origMat);
-                mat.name = "bossstone_starplatinum_mat";
+                mat.name = "bossstone_aurvandilsfylgja_mat";
 
                 Texture2D overlayTex = IconManager.BossStoneTexture;
                 if (overlayTex == null)
@@ -435,7 +468,7 @@ namespace StandsOfValheim
                                 1.0f);
                         }
 
-                        // Clean out Yagluth's old normal-map grooves on the front stone face and emboss Star Platinum's etched lines
+                        // Clean out Yagluth's old normal-map grooves on the front stone face and emboss Aurvandil's Fylgja's etched lines
                         if (bumpPixels != null && v >= 0.15f && v <= 0.56f && u >= 0.57f && u <= 0.90f)
                         {
                             // Sample clean stone normal from the uncarved back/side UV region of the same normal map
@@ -463,13 +496,13 @@ namespace StandsOfValheim
                 }
 
                 var newMainTex = new Texture2D(Size, Size, TextureFormat.RGBA32, true);
-                newMainTex.name = "StarPlatinumStone_d";
+                newMainTex.name = "AurvandilsFylgjaStone_d";
                 newMainTex.SetPixels(mainPixels);
                 newMainTex.Apply(true, false);
                 mat.SetTexture("_MainTex", newMainTex);
 
                 var newEmisTex = new Texture2D(Size, Size, TextureFormat.RGBA32, true);
-                newEmisTex.name = "StarPlatinumStone_e";
+                newEmisTex.name = "AurvandilsFylgjaStone_e";
                 newEmisTex.SetPixels(emisPixels);
                 newEmisTex.Apply(true, false);
                 if (mat.HasProperty("_EmissiveTex")) mat.SetTexture("_EmissiveTex", newEmisTex);
@@ -480,13 +513,13 @@ namespace StandsOfValheim
                 if (bumpPixels != null && mat.HasProperty("_BumpMap"))
                 {
                     var newBumpTex = new Texture2D(Size, Size, TextureFormat.RGBA32, true);
-                    newBumpTex.name = "StarPlatinumStone_n";
+                    newBumpTex.name = "AurvandilsFylgjaStone_n";
                     newBumpTex.SetPixels(bumpPixels);
                     newBumpTex.Apply(true, false);
                     mat.SetTexture("_BumpMap", newBumpTex);
                 }
 
-                Plugin.Log?.LogInfo("SacrificialStoneManager: Built 1024x1024 Star Platinum stone textures (_MainTex, _EmissiveTex, _BumpMap).");
+                Plugin.Log?.LogInfo("SacrificialStoneManager: Built 1024x1024 Aurvandil's Fylgja stone textures (_MainTex, _EmissiveTex, _BumpMap).");
                 return mat;
             }
             catch (Exception ex)
@@ -597,7 +630,7 @@ namespace StandsOfValheim
                 float dist = Vector3.Distance(stone.transform.position, referencePos);
                 if (dist > 65f) continue;
 
-                if (IsStarPlatinumStone(stone))
+                if (IsAurvandilsFylgjaStone(stone))
                 {
                     // Already spawned at this StartTemple!
                     ConfigureStoneInstance(stone.gameObject);
@@ -773,10 +806,10 @@ namespace StandsOfValheim
     }
 
     /// <summary>
-    /// Component attached to every BossStone_StarPlatinum instance to keep its visuals,
-    /// emission glow, and ItemStand trophy/power bindings active across zone loads.
+    /// Component attached to every BossStone_AurvandilsFylgja instance to keep its visuals,
+    /// emission glow, RuneStone inscription, and ItemStand trophy/power bindings active across zone loads.
     /// </summary>
-    public class StarPlatinumBossStone : MonoBehaviour
+    public class AurvandilsFylgjaBossStone : MonoBehaviour
     {
         private BossStone m_bossStone;
 
@@ -861,10 +894,10 @@ namespace StandsOfValheim
         {
             if (__instance == null) return;
 
-            if (SacrificialStoneManager.IsStarPlatinumStone(__instance))
+            if (SacrificialStoneManager.IsAurvandilsFylgjaStone(__instance))
             {
                 SacrificialStoneManager.ConfigureStoneInstance(__instance.gameObject);
-                __instance.GetComponent<StarPlatinumBossStone>()?.UpdateEmissionAndLight();
+                __instance.GetComponent<AurvandilsFylgjaBossStone>()?.UpdateEmissionAndLight();
             }
             else
             {
@@ -876,9 +909,9 @@ namespace StandsOfValheim
         [HarmonyPostfix]
         private static void BossStone_UpdateVisual_Postfix(BossStone __instance)
         {
-            if (__instance != null && SacrificialStoneManager.IsStarPlatinumStone(__instance))
+            if (__instance != null && SacrificialStoneManager.IsAurvandilsFylgjaStone(__instance))
             {
-                __instance.GetComponent<StarPlatinumBossStone>()?.UpdateEmissionAndLight();
+                __instance.GetComponent<AurvandilsFylgjaBossStone>()?.UpdateEmissionAndLight();
             }
         }
     }

@@ -5,11 +5,11 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Builds Star Platinum using the base bulked Valheim humanoid rigged model:
+    /// Builds Aurvandil's Fylgja using the base bulked Valheim humanoid rigged model:
     /// spectral purple musculature with dark forged-gold shoulder pads, waist belt, knee pads &amp; Dvergr circlet,
     /// red neck scarf, light grey loincloth, black boots &amp; gloves, and swept-up spiky black anime mane.
     /// </summary>
-    internal static class StarPlatinum
+    internal static class AurvandilsFylgja
     {
         private static readonly Color StandPurple  = new Color(0.58f, 0.20f, 0.92f, 1.0f);
         private static readonly Color HairColor    = new Color(0.02f, 0.02f, 0.03f, 1.0f);
@@ -17,11 +17,11 @@ namespace StandsOfValheim
 
         public static GameObject Build(Player owner)
         {
-            var root = new GameObject("StarPlatinum");
+            var root = new GameObject("AurvandilsFylgja");
             var follower = root.AddComponent<StandFollower>();
             follower.Owner = owner;
 
-            // Bulked scale: Star Platinum is noticeably larger and more imposing than a normal human
+            // Bulked scale: Aurvandil's Fylgja is noticeably larger and more imposing than a normal human
             root.transform.localScale = new Vector3(1.22f, 1.22f, 1.22f);
 
             // Initial position and rotation matching player facing direction (not camera)
@@ -35,12 +35,12 @@ namespace StandsOfValheim
             }
             catch (Exception ex)
             {
-                Plugin.Log?.LogError($"StarPlatinum: Failed to build asset model: {ex}");
+                Plugin.Log?.LogError($"AurvandilsFylgja: Failed to build asset model: {ex}");
             }
 
             if (!builtVisual)
             {
-                Plugin.Log?.LogWarning("StarPlatinum: Falling back to procedural primitive model.");
+                Plugin.Log?.LogWarning("AurvandilsFylgja: Falling back to procedural primitive model.");
                 BuildPrimitiveFallback(root, follower);
             }
 
@@ -83,7 +83,7 @@ namespace StandsOfValheim
             try
             {
                 bool spawnedActivationFx = false;
-                var activationEffects = SE_StarPlatinum.ResolveActivationEffects();
+                var activationEffects = SE_AurvandilsFylgja.ResolveActivationEffects();
                 if (activationEffects != null)
                 {
                     Vector3 effectCenter = position + Vector3.up * 1.15f;
@@ -112,7 +112,7 @@ namespace StandsOfValheim
             }
             catch (Exception ex)
             {
-                Plugin.Log?.LogWarning($"StarPlatinum: Entrance VFX failed: {ex.Message}");
+                Plugin.Log?.LogWarning($"AurvandilsFylgja: Entrance VFX failed: {ex.Message}");
             }
         }
 
@@ -133,7 +133,7 @@ namespace StandsOfValheim
 
             if (sourceVisual == null)
             {
-                Plugin.Log?.LogWarning("StarPlatinum: Could not find source player Visual.");
+                Plugin.Log?.LogWarning("AurvandilsFylgja: Could not find source player Visual.");
                 return false;
             }
 
@@ -166,7 +166,7 @@ namespace StandsOfValheim
             SkinnedMeshRenderer bodyModel = visual.GetComponentInChildren<SkinnedMeshRenderer>();
             if (bodyModel == null)
             {
-                Plugin.Log?.LogWarning("StarPlatinum: SkinnedMeshRenderer not found in visual.");
+                Plugin.Log?.LogWarning("AurvandilsFylgja: SkinnedMeshRenderer not found in visual.");
                 return false;
             }
 
@@ -179,7 +179,7 @@ namespace StandsOfValheim
                 if (baseModel.m_baseMaterial != null) bodyModel.material = new Material(baseModel.m_baseMaterial);
             }
 
-            // 4. Locate Head bone & Equip Golden Dvergr Circlet + swept-up Star Platinum spiky black mane
+            // 4. Locate Head bone & Equip Golden Dvergr Circlet + swept-up Aurvandil's Fylgja spiky black mane
             var animator = visual.GetComponent<Animator>();
             Transform headBone = FindBone(bodyModel, visual, HumanBodyBones.Head, "Head");
             Transform neckBone = FindBone(bodyModel, visual, HumanBodyBones.Neck, "Neck");
@@ -187,10 +187,10 @@ namespace StandsOfValheim
             if (headBone != null)
             {
                 GameObject circlet = EquipHeadPiece("HelmetDverger", headBone, visual, ownerVis);
-                StandEquipmentBuilder.AttachStarPlatinumHair(visual, headBone, neckBone, circlet);
+                StandEquipmentBuilder.AttachAurvandilsFylgjaHair(visual, headBone, neckBone, circlet);
             }
 
-            // 5. Equip Star Platinum's custom outfit: golden shoulder pads, red scarf, white loincloth, black gloves, black boots
+            // 5. Equip Aurvandil's Fylgja's custom outfit: golden shoulder pads, red scarf, light grey loincloth, black gloves, black boots
             StandEquipmentBuilder.EquipStandOutfit(visual, bodyModel, headBone, (bone, fallback) => FindBone(bodyModel, visual, bone, fallback));
 
             // 6. Apply spectral materials (translucent purple body, crisp gold circlet, black hair)
@@ -207,7 +207,7 @@ namespace StandsOfValheim
 
             InitializeStandAnimator(animator, follower);
 
-            Plugin.Log?.LogInfo("StarPlatinum: Constructed Stand with dark forged-gold shoulder pads, belt, knee pads & circlet, neck red scarf, light grey loincloth, black boots & gloves, and swept-up spiky black mane.");
+            Plugin.Log?.LogInfo("AurvandilsFylgja: Constructed Stand with dark forged-gold shoulder pads, belt, knee pads & circlet, neck red scarf, light grey loincloth, black boots & gloves, and swept-up spiky black mane.");
             return true;
         }
 
@@ -330,7 +330,7 @@ namespace StandsOfValheim
             GameObject itemPrefab = ObjectDB.instance.GetItemPrefab(itemName);
             if (itemPrefab == null)
             {
-                Plugin.Log?.LogWarning($"StarPlatinum: Item prefab '{itemName}' not found in ObjectDB.");
+                Plugin.Log?.LogWarning($"AurvandilsFylgja: Item prefab '{itemName}' not found in ObjectDB.");
                 return null;
             }
 
@@ -391,7 +391,7 @@ namespace StandsOfValheim
                 Mathf.Abs(parentScale.y) > 0.0001f ? desiredWorldScale.y / parentScale.y : attachSource.localScale.y,
                 Mathf.Abs(parentScale.z) > 0.0001f ? desiredWorldScale.z / parentScale.z : attachSource.localScale.z);
 
-            Plugin.Log?.LogInfo($"StarPlatinum: Equipped StandCirclet on '{attachParent.name}' (parentScale={parentScale}, localScale={attached.transform.localScale}, worldScale={attached.transform.lossyScale}).");
+            Plugin.Log?.LogInfo($"AurvandilsFylgja: Equipped StandCirclet on '{attachParent.name}' (parentScale={parentScale}, localScale={attached.transform.localScale}, worldScale={attached.transform.lossyScale}).");
 
             // Keep forehead jewel visual active while removing headlamp SpotLights and stray colliders
             Transform equipedChild = attached.transform.Find("equiped");
@@ -467,7 +467,7 @@ namespace StandsOfValheim
 
                     if (isHair)
                     {
-                        // Star Platinum's black hair: Crisp, opaque, jet black mane
+                        // Aurvandil's Fylgja's black hair: Crisp, opaque, jet black mane
                         mat.renderQueue = -1;
                         mat.color = HairColor;
                         if (mat.HasProperty("_SkinColor")) mat.SetColor("_SkinColor", HairColor);

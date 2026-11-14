@@ -5,7 +5,7 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Intercepts PlayerAttackInput to route primary (left-click single punch) and secondary
-    /// (middle-click ORA barrage) attack commands to Star Platinum when hands are free.
+    /// (middle-click ORA barrage) attack commands to Aurvandil's Fylgja when hands are free.
     /// </summary>
     [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
     internal static class AttackPatches
@@ -71,7 +71,7 @@ namespace StandsOfValheim
                 return true;
             }
 
-            // Route secondary (ORA barrage) or primary (single punch) uniformly to Star Platinum
+            // Route secondary (ORA barrage) or primary (single punch) uniformly to Aurvandil's Fylgja
             bool useSecondary = hasSecondary;
             bool allowStaminaFlash = useSecondary ? secAttack : attack;
             ref float activeQueue = ref (useSecondary ? ref queuedSec : ref queuedAtk);

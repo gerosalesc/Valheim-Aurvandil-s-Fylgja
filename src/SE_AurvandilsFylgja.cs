@@ -6,12 +6,13 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Star Platinum as a Valheim guardian (forsaken) power. Enforces "one at a time",
+    /// Aurvandil's Fylgja as a Valheim guardian (forsaken) power. Enforces "one at a time",
     /// the cooldown (60s), active duration (60s), the HUD slot, and activation via the 'F' power key.
     /// </summary>
-    public class SE_StarPlatinum : SE_Stats
+    public class SE_AurvandilsFylgja : SE_Stats
     {
-        public const string EffectName = "GP_StarPlatinum";
+        public const string EffectName = "GP_AurvandilsFylgja";
+        public const string LegacyEffectName = "GP_StarPlatinum";
         private const string ActivationEffectPrefabName = "fx_GP_Activation";
 
         private static readonly string[] BossKeywords =
@@ -58,7 +59,8 @@ namespace StandsOfValheim
                 {
                     if (se != null && se != eikthyr &&
                         se.name.StartsWith("GP_", StringComparison.Ordinal) &&
-                        se.name != EffectName)
+                        se.name != EffectName &&
+                        se.name != LegacyEffectName)
                     {
                         templates.Add(se);
                     }
@@ -166,39 +168,49 @@ namespace StandsOfValheim
         {
             if (db.m_StatusEffects.Count == 0) return;
 
-            var icon = IconManager.StarPlatinumIcon;
+            var icon = IconManager.AurvandilsFylgjaIcon;
             if (icon == null)
             {
                 var template = db.m_StatusEffects.Find(s => s != null && s.name == "GP_Eikthyr");
                 if (template != null) icon = template.m_icon;
             }
 
-            var existing = db.m_StatusEffects.Find(s => s != null && s.name == SE_StarPlatinum.EffectName);
+            RegisterOrUpdateEffect(db, SE_AurvandilsFylgja.EffectName, icon);
+            RegisterOrUpdateEffect(db, SE_AurvandilsFylgja.LegacyEffectName, icon);
+
+            if (Player.m_localPlayer != null)
+            {
+                string currentGp = Player.m_localPlayer.GetGuardianPowerName();
+                if (currentGp == SE_AurvandilsFylgja.EffectName || currentGp == SE_AurvandilsFylgja.LegacyEffectName)
+                {
+                    Player.m_localPlayer.SetGuardianPower(SE_AurvandilsFylgja.EffectName);
+                }
+            }
+        }
+
+        private static void RegisterOrUpdateEffect(ObjectDB db, string effectName, Sprite icon)
+        {
+            var existing = db.m_StatusEffects.Find(s => s != null && s.name == effectName);
             if (existing != null)
             {
                 ConfigureStatusEffect(existing, db, icon);
-
-                if (Player.m_localPlayer != null && Player.m_localPlayer.GetGuardianPowerName() == SE_StarPlatinum.EffectName)
-                {
-                    Player.m_localPlayer.SetGuardianPower(SE_StarPlatinum.EffectName);
-                }
                 return;
             }
 
-            var se = ScriptableObject.CreateInstance<SE_StarPlatinum>();
-            se.name = SE_StarPlatinum.EffectName;
+            var se = ScriptableObject.CreateInstance<SE_AurvandilsFylgja>();
+            se.name = effectName;
             ConfigureStatusEffect(se, db, icon);
 
             db.m_StatusEffects.Add(se);
-            Plugin.Log?.LogInfo("Registered GP_StarPlatinum in ObjectDB with Star Platinum runic bust icon.");
+            Plugin.Log?.LogInfo($"Registered {effectName} in ObjectDB with Aurvandil's Fylgja runic bust icon.");
         }
 
         private static void ConfigureStatusEffect(StatusEffect effect, ObjectDB db, Sprite icon)
         {
-            effect.m_name = "Star Platinum";
-            effect.m_tooltip = "Summon Star Platinum (60s active, 60s cooldown). Free your hands for Stand punch, ORA barrage, and Stand shield defense!";
+            effect.m_name = "Aurvandil's Fylgja";
+            effect.m_tooltip = "Summon the Aurvandil's Fylgja (60s active, 60s cooldown). Free your hands for Stand punch, ORA barrage, and Stand shield defense!";
             effect.m_startMessageType = MessageHud.MessageType.Center;
-            effect.m_startMessage = "STAR PLATINUM!";
+            effect.m_startMessage = "AURVANDIL'S FYLGJA!";
             effect.m_ttl = 60f;
             effect.m_cooldown = 60f;
             effect.m_activationAnimation = "gpower";
@@ -210,13 +222,13 @@ namespace StandsOfValheim
                 stats.m_staminaRegenMultiplier = 1.3f;
             }
 
-            if (effect is SE_StarPlatinum sp)
+            if (effect is SE_AurvandilsFylgja af)
             {
-                sp.EnsureActivationEffects(db);
+                af.EnsureActivationEffects(db);
             }
             else
             {
-                var fx = SE_StarPlatinum.ResolveActivationEffects(db);
+                var fx = SE_AurvandilsFylgja.ResolveActivationEffects(db);
                 if (fx != null) effect.m_startEffects = fx;
             }
         }

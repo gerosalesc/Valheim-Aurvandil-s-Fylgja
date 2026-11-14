@@ -6,23 +6,23 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Loads and caches custom UI icons for Star Platinum.
+    /// Loads and caches custom UI icons and textures for Aurvandil's Fylgja.
     /// Supports embedded assembly resources and override files on disk.
     /// </summary>
     internal static class IconManager
     {
-        private static Sprite s_starPlatinumIcon;
+        private static Sprite s_aurvandilsFylgjaIcon;
         private static Texture2D s_bossStoneTexture;
 
-        public static Sprite StarPlatinumIcon
+        public static Sprite AurvandilsFylgjaIcon
         {
             get
             {
-                if (s_starPlatinumIcon == null)
+                if (s_aurvandilsFylgjaIcon == null)
                 {
-                    s_starPlatinumIcon = LoadStarPlatinumIcon();
+                    s_aurvandilsFylgjaIcon = LoadAurvandilsFylgjaIcon();
                 }
-                return s_starPlatinumIcon;
+                return s_aurvandilsFylgjaIcon;
             }
         }
 
@@ -33,19 +33,19 @@ namespace StandsOfValheim
                 if (s_bossStoneTexture == null)
                 {
                     s_bossStoneTexture = LoadTextureResource(
-                        "bossstone_starplatinum.png",
-                        "GP_StarPlatinum_BossStoneTex",
+                        "bossstone_aurvandilsfylgja.png",
+                        "GP_AurvandilsFylgja_BossStoneTex",
                         new[]
                         {
-                            "bossstone_starplatinum.png",
-                            Path.Combine("resources", "bossstone_starplatinum.png")
+                            "bossstone_aurvandilsfylgja.png",
+                            Path.Combine("resources", "bossstone_aurvandilsfylgja.png")
                         });
                 }
                 return s_bossStoneTexture;
             }
         }
 
-        private static Sprite LoadStarPlatinumIcon()
+        private static Sprite LoadAurvandilsFylgjaIcon()
         {
             try
             {
@@ -56,10 +56,10 @@ namespace StandsOfValheim
                 if (!string.IsNullOrEmpty(dllDir))
                 {
                     string[] candidates = {
-                        "icon_starplatinum.png",
-                        "starplatinum_icon.png",
-                        "star_platinum.png",
-                        Path.Combine("resources", "icon_starplatinum.png")
+                        "icon_aurvandilsfylgja.png",
+                        "aurvandilsfylgja_icon.png",
+                        "aurvandils_fylgja.png",
+                        Path.Combine("resources", "icon_aurvandilsfylgja.png")
                     };
                     foreach (var name in candidates)
                     {
@@ -79,7 +79,7 @@ namespace StandsOfValheim
                     var asm = Assembly.GetExecutingAssembly();
                     foreach (var res in asm.GetManifestResourceNames())
                     {
-                        if (res.EndsWith("icon_starplatinum.png", StringComparison.OrdinalIgnoreCase))
+                        if (res.EndsWith("icon_aurvandilsfylgja.png", StringComparison.OrdinalIgnoreCase))
                         {
                             using (var stream = asm.GetManifestResourceStream(res))
                             {
@@ -103,7 +103,7 @@ namespace StandsOfValheim
                     {
                         method.Invoke(null, new object[] { tex, pngBytes });
                         var sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
-                        sprite.name = "GP_StarPlatinum_Icon";
+                        sprite.name = "GP_AurvandilsFylgja_Icon";
                         return sprite;
                     }
                 }

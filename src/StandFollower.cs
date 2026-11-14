@@ -4,7 +4,7 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Controls Star Platinum's movement, idle hovering over the player's shoulder,
+    /// Controls Aurvandil's Fylgja's movement, idle hovering over the player's shoulder,
     /// defensive shield positioning when blocking, single-punch strikes, and the rapid ORA punch barrage.
     /// Faces the direction the player is facing (independent of camera).
     /// </summary>
@@ -354,10 +354,10 @@ namespace StandsOfValheim
 
                 if (MessageHud.instance != null)
                 {
-                    MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, "★ STAR PLATINUM: ORA ORA ORA! ★");
+                    MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, "★ AURVANDIL'S FYLGJA: ORA ORA ORA! ★");
                 }
 
-                Plugin.Log?.LogInfo("Star Platinum: 12-hit ORA barrage activated!");
+                Plugin.Log?.LogInfo("Aurvandil's Fylgja: 12-hit ORA barrage activated!");
             }
             else
             {

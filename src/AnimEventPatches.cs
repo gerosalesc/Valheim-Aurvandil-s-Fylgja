@@ -3,7 +3,7 @@ using HarmonyLib;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Prevents CharacterAnimEvent.Awake from crashing on Star Platinum's cloned visual model,
+    /// Prevents CharacterAnimEvent.Awake from crashing on Aurvandil's Fylgja's cloned visual model,
     /// since the Stand does not have a Character or ZNetView root component.
     /// </summary>
     [HarmonyPatch(typeof(CharacterAnimEvent), "Awake")]

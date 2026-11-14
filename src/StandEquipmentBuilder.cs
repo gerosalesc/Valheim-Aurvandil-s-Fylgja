@@ -6,9 +6,9 @@ using UnityEngine.Rendering;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Builds Star Platinum's custom armor and accessories rigged onto the Stand's humanoid skeleton:
+    /// Builds Aurvandil's Fylgja's custom armor and accessories rigged onto the Stand's humanoid skeleton:
     /// dark forged-gold shoulder pads, waist belt, knee pads, and circlet; crimson neck scarf;
-    /// white loincloth; and black combat boots and gloves.
+    /// light grey loincloth; and black combat boots and gloves.
     /// </summary>
     internal static class StandEquipmentBuilder
     {
@@ -30,7 +30,7 @@ namespace StandsOfValheim
         private static Material s_loinclothMaterial;
         private static Material s_hairMaterial;
 
-        public static void AttachStarPlatinumHair(GameObject visual, Transform headBone, Transform neckBone, GameObject circlet)
+        public static void AttachAurvandilsFylgjaHair(GameObject visual, Transform headBone, Transform neckBone, GameObject circlet)
         {
             if (visual == null || headBone == null) return;
 
@@ -75,7 +75,7 @@ namespace StandsOfValheim
             }
 
             Quaternion worldRot = Quaternion.LookRotation(headFwd, headUp);
-            var hairGo = CreateGearObject("StandHairMane", BuildStarPlatinumHairMesh(), GetHairMaterial());
+            var hairGo = CreateGearObject("StandHairMane", BuildAurvandilsFylgjaHairMesh(), GetHairMaterial());
             PlaceAnchoredPiece(visual, hairGo, headBone, hairAnchor, worldRot);
         }
 
@@ -1018,7 +1018,7 @@ namespace StandsOfValheim
             // 2. Circular domed golden knee shield (poleyn) centered proud over the kneecap
             AppendDiscMedallion(verts, tris, new Vector3(0f, 0.008f, 0.088f), Vector3.forward, outerRadius: 0.068f, domeDepth: 0.034f, segs: 18);
 
-            // 3. Lower golden shin-guard tongue wing below the knee cap matching Star Platinum silhouette
+            // 3. Lower golden shin-guard tongue wing below the knee cap matching Aurvandil's Fylgja silhouette
             var lowerWing = new (float y, float zCenter, float xHalfWidth, float halfThick, float bowZ, float vTipDrop)[]
             {
                 (-0.018f, 0.102f, 0.048f, 0.009f, -0.024f, 0.000f),
@@ -1030,7 +1030,7 @@ namespace StandsOfValheim
             return FinalizeMesh("StandKneePadMesh", verts, tris, uvScale: 5.5f);
         }
 
-        private static Mesh BuildStarPlatinumHairMesh()
+        private static Mesh BuildAurvandilsFylgjaHairMesh()
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();

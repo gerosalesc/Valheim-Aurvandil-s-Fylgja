@@ -4,7 +4,7 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Pooled spectral afterimage fist flurry and punch-impact shockwave rings for Star Platinum's ORA barrage.
+    /// Pooled spectral afterimage fist flurry and punch-impact shockwave rings for Aurvandil's Fylgja's ORA barrage.
     /// Uses Valheim's opaque Custom/Creature shader with high emission and clean scale-in/scale-out lifecycles.
     /// </summary>
     internal sealed class StandBarrageVfx

@@ -24,9 +24,9 @@ namespace StandsOfValheim
         public static void Summon(Player p)
         {
             Dismiss(p);
-            var go = StarPlatinum.Build(p);
+            var go = AurvandilsFylgja.Build(p);
             Active[p] = go;
-            Plugin.Log?.LogInfo($"StandManager: Star Platinum summoned for {p.GetPlayerName()}");
+            Plugin.Log?.LogInfo($"StandManager: Aurvandil's Fylgja summoned for {p.GetPlayerName()}");
         }
 
         public static void Dismiss(Player p)
@@ -36,7 +36,7 @@ namespace StandsOfValheim
                 Object.Destroy(go);
             }
             Active.Remove(p);
-            Plugin.Log?.LogInfo($"StandManager: Star Platinum dismissed for {p.GetPlayerName()}");
+            Plugin.Log?.LogInfo($"StandManager: Aurvandil's Fylgja dismissed for {p.GetPlayerName()}");
         }
 
         public static StandFollower.AttackStartStatus TriggerAttack(Player p, bool secondary = true, bool allowStaminaFlash = true)

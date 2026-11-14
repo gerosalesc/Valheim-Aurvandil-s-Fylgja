@@ -4,7 +4,7 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Patches Humanoid.BlockAttack so that when Star Platinum is summoned AND the player's hands are free,
+    /// Patches Humanoid.BlockAttack so that when Aurvandil's Fylgja is summoned AND the player's hands are free,
     /// the Stand acts as the player's shield with stats calculated from the player's base armor and blocking skill.
     /// If weapons or shields are equipped in hand, normal item blocking is used instead.
     /// - Normal block armor = 2x base player armor * (1 + skill * 0.5)
@@ -83,7 +83,7 @@ namespace StandsOfValheim
 
             if (success)
             {
-                // Attack successfully blocked by Star Platinum
+                // Attack successfully blocked by Aurvandil's Fylgja
                 hit.m_statusEffectHash = 0;
                 hit.BlockDamage(blockedDamage);
 
