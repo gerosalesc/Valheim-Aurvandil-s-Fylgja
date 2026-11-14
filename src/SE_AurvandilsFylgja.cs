@@ -208,7 +208,7 @@ namespace StandsOfValheim
         private static void ConfigureStatusEffect(StatusEffect effect, ObjectDB db, Sprite icon)
         {
             effect.m_name = "Aurvandil's Fylgja";
-            effect.m_tooltip = "Summon the Aurvandil's Fylgja (5m active, 10m cooldown). Free your hands for Stand punch, ORA barrage, and Stand shield defense!";
+            effect.m_tooltip = "Summon the Aurvandil's Fylgja (5m active, 10m cooldown). Free your hands for Fylgja punch, astral barrage, and Fylgja shield defense!";
             effect.m_startMessageType = MessageHud.MessageType.Center;
             effect.m_startMessage = "AURVANDIL'S FYLGJA!";
             effect.m_ttl = 300f;

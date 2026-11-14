@@ -4,7 +4,7 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Prevents CharacterAnimEvent.Awake from crashing on Aurvandil's Fylgja's cloned visual model,
-    /// since the Stand does not have a Character or ZNetView root component.
+    /// since the Fylgja does not have a Character or ZNetView root component.
     /// </summary>
     [HarmonyPatch(typeof(CharacterAnimEvent), "Awake")]
     internal static class AnimEventPatches
@@ -14,7 +14,7 @@ namespace StandsOfValheim
         {
             if (__instance != null && __instance.GetComponentInParent<StandFollower>() != null)
             {
-                return false; // Skip on Stand
+                return false; // Skip on Fylgja
             }
             return true;
         }

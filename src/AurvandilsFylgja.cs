@@ -44,13 +44,13 @@ namespace StandsOfValheim
                 BuildPrimitiveFallback(root, follower);
             }
 
-            // Remove all physics colliders from Stand so it floats freely without physics interference
+            // Remove all physics colliders from the Fylgja so it floats freely without physics interference
             foreach (var col in root.GetComponentsInChildren<Collider>(true))
             {
                 UnityEngine.Object.Destroy(col);
             }
 
-            // --- Stand Aura Point Light ---
+            // --- Fylgja Aura Point Light ---
             var lightObj = new GameObject("StandAura");
             lightObj.transform.SetParent(root.transform, false);
             lightObj.transform.localPosition = new Vector3(0, 1.35f, 0);
@@ -207,7 +207,7 @@ namespace StandsOfValheim
 
             InitializeStandAnimator(animator, follower);
 
-            Plugin.Log?.LogInfo("AurvandilsFylgja: Constructed Stand with dark forged-gold shoulder pads, belt, knee pads & circlet, neck red scarf, light grey loincloth, black boots & gloves, and swept-up spiky black mane.");
+            Plugin.Log?.LogInfo("AurvandilsFylgja: Constructed Fylgja with dark forged-gold shoulder pads, belt, knee pads & circlet, neck red scarf, light grey loincloth, black boots & gloves, and swept-up spiky black mane.");
             return true;
         }
 
@@ -481,7 +481,7 @@ namespace StandsOfValheim
                         continue;
                     }
 
-                    // Stand Body: keep Custom/Player in its native opaque G-buffer queue with alpha 1.0
+                    // Fylgja Body: keep Custom/Player in its native opaque G-buffer queue with alpha 1.0
                     // so Valheim's player cutout mask never shreds bare skin into holes.
                     mat.renderQueue = -1;
                     mat.color = StandPurple;

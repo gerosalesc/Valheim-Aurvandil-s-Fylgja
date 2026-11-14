@@ -4,7 +4,7 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Spawns, despawns, and manages active Stand game objects.
+    /// Spawns, despawns, and manages active Fylgja game objects.
     /// </summary>
     internal static class StandManager
     {

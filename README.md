@@ -1,43 +1,42 @@
-# Stands of Valheim
+# Valheim Fylgja
 
-BepInEx mod for Valheim adding JoJo Stands. Currently featuring: **Star Platinum**.
+A BepInEx mod for Valheim adding summonable **Fylgja** astral guardians as Forsaken Powers. Currently featuring: **Aurvandil's Fylgja**.
+
+For step-by-step Windows setup instructions, see the [Installation & Usage Guide](INSTALL.md).
 
 ## Features
-- **Forsaken Power Integration:** Equipped via `devcommands` and triggered with the `F` key (60s active duration, 60s cooldown), respecting native HUD slots and power cooldowns.
-- **Stand Visuals:** Spectral purple muscular humanoid Stand wearing golden shoulder pads, a wrapped red scarf, a white loincloth, black combat boots, black gloves, a golden circlet, Painter Curls black hair, and a glowing purple Stand aura.
-- **Stand Actions (Hands-Free Requirement):** Stand combat actions (Single Punch, ORA Barrage, and Stand Shield Block) only trigger when the player's hands are free (unarmed or with weapons sheathed via `R`). When weapons or shields are equipped in hand, normal weapon/shield actions take precedence.
-- **Primary Attack (Stand Single Punch):** With hands free, press **Left Mouse Button** for a fast single punch from Star Platinum (1 hit, no ORA voice cry, 5 stamina).
-- **Secondary Attack (ORA Barrage):** With hands free, press **Middle Mouse Button** to trigger a **5-hit ORA ORA ORA** punch barrage (16 stamina).
-  - Features authentic Jotaro / Star Platinum **ORA ORA ORA** voice audio cry.
-  - Rapid punching animation using accelerated player unarmed combos.
-  - Punches deal 35 blunt damage, heavy knockback, and high stagger.
-- **Stand Shield Defense & Parry:** With hands free, holding **Right Mouse Button** (Block) causes Star Platinum to move directly in front of you, crossing its arms in a shield stance with a flared energy aura.
-  - **Base Block Armor:** `2x` the player's base armor, scaled with the player's **Blocking** skill (`+50%` at skill 100).
-  - **Parry Block Armor:** `6x` the player's base armor when timed within 0.25s of raising block.
-  - **Parry Bonus:** `2.5x` with spark effects, parry sound, and attacker stagger.
+- **Sacrificial Stone Progression:** Spawns a custom rune-carved monolith at the **Start Temple** circle. Offer a **Fallen Valkyrie Trophy** to awaken **Aurvandil's Fylgja**.
+- **Forsaken Power Integration:** Summoned via the **`F`** power key (**5 minutes** active duration, **10 minutes** cooldown), respecting native HUD slots and power cooldowns.
+- **Fylgja Visuals:** Spectral purple humanoid guardian wearing dark forged-gold shoulder pads, waist belt, knee pads, and circlet; crimson neck scarf; matte light-grey loincloth; black combat boots and gloves; windswept black mane; and a glowing purple aura.
+- **Hands-Free Requirement:** Fylgja combat actions (Single Punch, Astral Barrage, and Fylgja Shield Defense) only trigger when the player's hands are free (unarmed or weapons sheathed via **`R`**). When weapons or shields are equipped, normal combat actions take precedence.
+- **Primary Attack (Fylgja Single Punch):** With hands free, press **Left Mouse Button** for a fast punch (`5` stamina, `35` blunt damage, knockback, and high stagger).
+- **Secondary Attack (Astral Barrage):** With hands free, press **Middle Mouse Button** to unleash a rapid **12-hit punch barrage** (`16` stamina).
+  - Features rapid combo animations, spectral speed-flurry afterimages, and shockwave impact rings.
+  - Deals `20` blunt damage per strike with a `45` blunt damage heavy knockback finisher (`2.5x`–`3.0x` stagger multiplier).
+  - Includes custom barrage audio.
+- **Fylgja Shield Defense & Parry:** With hands free, holding **Right Mouse Button** (Block) moves Aurvandil's Fylgja directly in front of you in a guard stance with a flared protective aura.
+  - **Base Block Armor:** `2x` the player's base armor, scaled with the **Blocking** skill (`+50%` at skill `100`).
+  - **Parry Block Armor:** `6x` the player's base armor when timed within `0.25s` of raising guard, triggering parry sparks and staggering the attacker.
 
-## Usage
-1. Open the in-game console (`F5`).
-2. Type:
-   ```
-   devcommands
-   stand
-   ```
-3. Press **`F`** to summon Star Platinum.
-4. Press **Left Mouse Button** (Primary Attack) for a fast Stand single punch without an ORA shout.
-5. Press **Middle Mouse Button** (Secondary Attack) to unleash the 5-hit ORA punch barrage with voice audio cry!
-6. Hold **Right Mouse Button** to block incoming attacks with Star Platinum. Time it right before an attack lands for a **6x Parry**!
+## Quick Usage
+1. Offer a **Fallen Valkyrie Trophy** at the **Aurvandil's Fylgja** sacrificial stone near the Start Temple (or open the `F5` console with `-console`, run `devcommands`, and type `fylgja`).
+2. Press **`F`** to summon **Aurvandil's Fylgja**.
+3. Sheathe your weapons (`R`) so your hands are free:
+   - **Left Mouse Button:** Fast single punch.
+   - **Middle Mouse Button:** 12-hit astral barrage.
+   - **Hold Right Mouse Button:** Guard or time a **6x Parry** with Aurvandil's Fylgja.
 
-## Build
-Requires .NET SDK and Valheim with BepInEx installed.
+## Installation & Build
+See [INSTALL.md](INSTALL.md) for full Windows installation steps (BepInEx + single-file `StandsOfValheim.dll` drop-in).
+
+To compile from source (requires .NET SDK and Valheim with BepInEx installed):
 ```bash
-dotnet build
+dotnet build -p:ValheimDir="/path/to/Valheim"
 ```
-Copy `bin/Debug/net48/StandsOfValheim.dll` to `Valheim/BepInEx/plugins/`.
+Copy `bin/Debug/net48/StandsOfValheim.dll` to `Valheim/BepInEx/plugins/`. All icons, stone textures, and audio clips are embedded inside the DLL.
 
 ## Roadmap
-- Custom 3D model loaded via Unity AssetBundle
-- Star Platinum: The World (time-stop mechanic)
-- Additional JoJo stands (The World, Silver Chariot, Crazy Diamond)
+- Additional Fylgjur / boss-linked astral guardians
+- Custom 3D models loaded via Unity AssetBundle
 - Multiplayer network sync
-- Craftable stand arrows for survival progression
+- Expanded survival crafting & rune rituals

@@ -5,7 +5,7 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Patches Humanoid.BlockAttack so that when Aurvandil's Fylgja is summoned AND the player's hands are free,
-    /// the Stand acts as the player's shield with stats calculated from the player's base armor and blocking skill.
+    /// the Fylgja acts as the player's shield with stats calculated from the player's base armor and blocking skill.
     /// If weapons or shields are equipped in hand, normal item blocking is used instead.
     /// - Normal block armor = 2x base player armor * (1 + skill * 0.5)
     /// - Parry block armor  = 6x base player armor * (1 + skill * 0.5)
@@ -28,7 +28,7 @@ namespace StandsOfValheim
             if (__instance is Player player && StandManager.IsActive(player) && StandManager.AreHandsFree(player))
             {
                 __result = ExecuteStandBlock(player, hit, attacker);
-                return false; // Stand takes the block, skip vanilla calculation
+                return false; // Fylgja takes the block, skip vanilla calculation
             }
             return true; // Equipped items/shield used normally
         }
@@ -96,7 +96,7 @@ namespace StandsOfValheim
                 // Raise player's blocking skill
                 player.RaiseSkill(Skills.SkillType.Blocking, isParry ? 2f : 1f);
 
-                // Stand deflection / recoil reaction
+                // Fylgja deflection / recoil reaction
                 StandManager.TriggerBlockReaction(player, isParry);
 
                 if (isParry)
@@ -113,11 +113,11 @@ namespace StandsOfValheim
                         attacker.Stagger(-hit.m_dir);
                     }
 
-                    Plugin.Log?.LogInfo($"Stand Block: PARRY! Block Armor: {activeBlockArmor:F1} (6x base), Blocked: {blockedDamage:F1}");
+                    Plugin.Log?.LogInfo($"Fylgja Block: PARRY! Block Armor: {activeBlockArmor:F1} (6x base), Blocked: {blockedDamage:F1}");
                 }
                 else
                 {
-                    Plugin.Log?.LogInfo($"Stand Block: Blocked {blockedDamage:F1} damage with {activeBlockArmor:F1} armor (2x base).");
+                    Plugin.Log?.LogInfo($"Fylgja Block: Blocked {blockedDamage:F1} damage with {activeBlockArmor:F1} armor (2x base).");
                 }
             }
 

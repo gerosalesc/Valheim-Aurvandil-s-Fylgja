@@ -8,7 +8,7 @@ namespace StandsOfValheim
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "grosales.StandsOfValheim";
-        public const string Name = "Stands of Valheim";
+        public const string Name = "Valheim Fylgja";
         public const string Version = "0.1.0";
 
         internal static ManualLogSource Log;
@@ -17,7 +17,7 @@ namespace StandsOfValheim
         {
             Log = Logger;
             new Harmony(Guid).PatchAll();
-            Log.LogInfo($"{Name} {Version} loaded. Use devcommands, then 'stand' in the F5 console.");
+            Log.LogInfo($"{Name} {Version} loaded. Use devcommands, then 'fylgja' in the F5 console.");
         }
     }
 }

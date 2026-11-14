@@ -6,7 +6,7 @@ using UnityEngine;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Loads and caches custom audio clips for JoJo Stand abilities.
+    /// Loads and caches custom audio clips for Fylgja abilities.
     /// Supports embedded assembly resources and override files on disk.
     /// </summary>
     internal static class SoundManager

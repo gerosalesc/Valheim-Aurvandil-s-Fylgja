@@ -6,9 +6,9 @@ using UnityEngine.Rendering;
 namespace StandsOfValheim
 {
     /// <summary>
-    /// Builds Aurvandil's Fylgja's custom armor and accessories rigged onto the Stand's humanoid skeleton:
+    /// Builds Aurvandil's Fylgja's custom armor and accessories rigged onto the Fylgja's humanoid skeleton:
     /// dark forged-gold shoulder pads, waist belt, knee pads, and circlet; crimson neck scarf;
-    /// light grey loincloth; and black combat boots and gloves.
+    /// matte light-grey loincloth; and black combat boots and gloves.
     /// </summary>
     internal static class StandEquipmentBuilder
     {

@@ -446,14 +446,14 @@ namespace StandsOfValheim
         {
             var t = Owner.transform;
 
-            // Stand moves smoothly right in front of the player
+            // Fylgja moves smoothly right in front of the player
             Vector3 targetPos = t.TransformPoint(BlockOffset);
             transform.position = Vector3.Lerp(transform.position, targetPos, Smooth * 1.5f * Time.deltaTime);
 
-            // Stand faces the EXACT direction the player is facing (independent of camera)
+            // Fylgja faces the EXACT direction the player is facing (independent of camera)
             transform.rotation = Quaternion.Slerp(transform.rotation, t.rotation, Smooth * 1.5f * Time.deltaTime);
 
-            // Flare Stand aura into a bright protective barrier
+            // Flare Fylgja aura into a bright protective barrier
             if (Aura != null)
             {
                 Aura.intensity = Mathf.Lerp(Aura.intensity, 2.5f, Smooth * Time.deltaTime);
@@ -465,12 +465,12 @@ namespace StandsOfValheim
             _attackTimer -= Time.deltaTime;
             _punchAnimTime += Time.deltaTime;
 
-            // Move Stand forward into attack position
+            // Move Fylgja forward into attack position
             var t = Owner.transform;
             Vector3 targetPos = t.TransformPoint(AttackOffset);
             transform.position = Vector3.Lerp(transform.position, targetPos, Smooth * 1.5f * Time.deltaTime);
 
-            // Stand faces the direction the player is facing (independent of camera)
+            // Fylgja faces the direction the player is facing (independent of camera)
             transform.rotation = Quaternion.Slerp(transform.rotation, t.rotation, Smooth * 1.5f * Time.deltaTime);
 
             if (_attackMode == AttackMode.Barrage)
@@ -478,7 +478,7 @@ namespace StandsOfValheim
                 // Subtle flurry recoil forward with punches
                 transform.position += transform.forward * (Mathf.Abs(Mathf.Sin(_punchAnimTime * 42f)) * 0.06f);
 
-                // Flare Stand aura during barrage
+                // Flare Fylgja aura during barrage
                 if (Aura != null)
                 {
                     float pulse = 2.8f + Mathf.Abs(Mathf.Sin(_punchAnimTime * 40f)) * 0.65f;
@@ -587,7 +587,7 @@ namespace StandsOfValheim
             Vector3 target = t.TransformPoint(IdleOffset) + bob;
             transform.position = Vector3.Lerp(transform.position, target, Smooth * Time.deltaTime);
 
-            // Stand faces the EXACT direction the player is facing (independent of camera)
+            // Fylgja faces the EXACT direction the player is facing (independent of camera)
             transform.rotation = Quaternion.Slerp(transform.rotation, t.rotation, Smooth * Time.deltaTime);
 
             // Return aura intensity to normal
