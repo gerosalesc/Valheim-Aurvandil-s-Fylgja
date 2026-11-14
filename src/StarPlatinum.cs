@@ -57,8 +57,8 @@ namespace StandsOfValheim
             var aura = lightObj.AddComponent<Light>();
             aura.type = LightType.Point;
             aura.color = new Color(0.70f, 0.25f, 1.0f);
-            aura.range = 4.2f;
-            aura.intensity = 1.4f;
+            aura.range = 5.4f;
+            aura.intensity = 3.2f;
             aura.shadows = LightShadows.None;
             follower.Aura = aura;
 
@@ -72,17 +72,26 @@ namespace StandsOfValheim
             audioSource.volume = 1.0f;
             follower.StandAudio = audioSource;
 
-            // --- Exciting Manifestation Entrance VFX & Camera Shake ---
-            SpawnEntranceVFX(root.transform.position, root.transform.rotation);
+            // --- Guardian Power OOB Activation VFX/Lights & Camera Shake ---
+            SpawnEntranceVFX(root.transform.position, root.transform.rotation, root.transform);
 
             return root;
         }
 
-        private static void SpawnEntranceVFX(Vector3 position, Quaternion rotation)
+        private static void SpawnEntranceVFX(Vector3 position, Quaternion rotation, Transform standRoot)
         {
             try
             {
-                if (ZNetScene.instance != null)
+                bool spawnedActivationFx = false;
+                var activationEffects = SE_StarPlatinum.ResolveActivationEffects();
+                if (activationEffects != null)
+                {
+                    Vector3 effectCenter = position + Vector3.up * 1.15f;
+                    var created = activationEffects.Create(effectCenter, rotation, standRoot, 1.0f);
+                    spawnedActivationFx = created != null && created.Length > 0;
+                }
+
+                if (!spawnedActivationFx && ZNetScene.instance != null)
                 {
                     string[] vfxCandidates = { "vfx_ghost_spawn", "vfx_spawn_large", "vfx_spawn", "vfx_prespawn" };
                     foreach (var name in vfxCandidates)
@@ -131,15 +140,16 @@ namespace StandsOfValheim
             // 2. Clone the visual hierarchy
             GameObject visual = UnityEngine.Object.Instantiate(sourceVisual, root.transform);
             visual.name = "Visual";
+            visual.SetActive(true);
             visual.transform.localPosition = Vector3.zero;
             visual.transform.localRotation = Quaternion.identity;
 
-            // Remove unnecessary components on the visual root safely
+            // Remove CharacterAnimEvent synchronously so Animator.Update/gpower never invokes Player RPCs or events
             var animEvent = visual.GetComponent<CharacterAnimEvent>();
             if (animEvent != null)
             {
                 animEvent.enabled = false;
-                UnityEngine.Object.Destroy(animEvent);
+                UnityEngine.Object.DestroyImmediate(animEvent);
             }
 
             var lod = visual.GetComponent<LODGroup>();
@@ -171,12 +181,6 @@ namespace StandsOfValheim
 
             // 4. Locate Head bone & Equip Golden Dvergr Circlet + swept-up Star Platinum spiky black mane
             var animator = visual.GetComponent<Animator>();
-            if (animator != null)
-            {
-                // Re-pose bones every render frame so StandFollower.LateUpdate offsets never stack on a stale pose
-                animator.updateMode = AnimatorUpdateMode.Normal;
-                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-            }
             Transform headBone = FindBone(bodyModel, visual, HumanBodyBones.Head, "Head");
             Transform neckBone = FindBone(bodyModel, visual, HumanBodyBones.Neck, "Neck");
 
@@ -192,7 +196,7 @@ namespace StandsOfValheim
             // 6. Apply spectral materials (translucent purple body, crisp gold circlet, black hair)
             ApplySpectralStandMaterials(visual);
 
-            // 7. Wire limb bones and animator to StandFollower
+            // 7. Wire limb bones and animator to StandFollower, then settle pose & play OOB activation anim
             follower.StandAnimator = animator;
             follower.Head  = headBone;
             follower.Torso = FindBone(bodyModel, visual, HumanBodyBones.Chest, "Chest") ?? visual.transform;
@@ -201,8 +205,95 @@ namespace StandsOfValheim
             follower.FistL = FindBone(bodyModel, visual, HumanBodyBones.LeftHand, "LeftHand");
             follower.FistR = FindBone(bodyModel, visual, HumanBodyBones.RightHand, "RightHand");
 
+            InitializeStandAnimator(animator, follower);
+
             Plugin.Log?.LogInfo("StarPlatinum: Constructed Stand with dark forged-gold shoulder pads, belt, knee pads & circlet, neck red scarf, light grey loincloth, black boots & gloves, and swept-up spiky black mane.");
             return true;
+        }
+
+        private static void InitializeStandAnimator(Animator animator, StandFollower follower)
+        {
+            if (animator == null) return;
+
+            animator.enabled = true;
+            // Re-pose bones every render frame so StandFollower.LateUpdate offsets never stack on a stale pose
+            animator.updateMode = AnimatorUpdateMode.Normal;
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
+            var paramTypes = new Dictionary<string, AnimatorControllerParameterType>();
+            var triggers = new List<int>();
+            foreach (var p in animator.parameters)
+            {
+                paramTypes[p.name] = p.type;
+                if (p.type == AnimatorControllerParameterType.Trigger)
+                {
+                    triggers.Add(p.nameHash);
+                }
+            }
+
+            // Clear Valheim's default spawn-sitting ("wakeup") & transient status params immediately
+            string[] falseBools =
+            {
+                "wakeup", "intro", "sitting", "crouching", "crouch", "cutscene",
+                "dead", "sleeping", "blocking", "inWater", "encumbered", "falling",
+                "flying", "freeze", "skategliding", "skating", "slipping"
+            };
+            foreach (var b in falseBools)
+            {
+                if (paramTypes.TryGetValue(b, out var t) && t == AnimatorControllerParameterType.Bool)
+                {
+                    animator.SetBool(b, false);
+                }
+            }
+
+            if (paramTypes.TryGetValue("onGround", out var ogType) && ogType == AnimatorControllerParameterType.Bool)
+            {
+                animator.SetBool("onGround", true);
+            }
+
+            string[] zeroFloats = { "forward_speed", "sideway_speed", "turn_speed", "tilt", "statef" };
+            foreach (var f in zeroFloats)
+            {
+                if (paramTypes.TryGetValue(f, out var t) && t == AnimatorControllerParameterType.Float)
+                {
+                    animator.SetFloat(f, 0f);
+                }
+            }
+
+            string[] zeroInts = { "statei", "crafting", "emote" };
+            foreach (var n in zeroInts)
+            {
+                if (paramTypes.TryGetValue(n, out var t) && t == AnimatorControllerParameterType.Int)
+                {
+                    animator.SetInteger(n, 0);
+                }
+            }
+
+            foreach (int trigHash in triggers)
+            {
+                animator.ResetTrigger(trigHash);
+            }
+
+            // Synchronously advance past the ~1-2s wakeup stand-up transition before the first rendered frame
+            for (int i = 0; i < 30; i++)
+            {
+                animator.Update(0.1f);
+            }
+
+            // Snapshot each layer's resting upright state so punching/blocking can cancel gpower instantaneously
+            int[] idleStateHashes = new int[animator.layerCount];
+            for (int layer = 0; layer < idleStateHashes.Length; layer++)
+            {
+                idleStateHashes[layer] = animator.GetCurrentAnimatorStateInfo(layer).fullPathHash;
+            }
+            follower.ConfigureAnimatorStates(idleStateHashes);
+
+            if (paramTypes.TryGetValue("gpower", out var gpType) && gpType == AnimatorControllerParameterType.Trigger)
+            {
+                animator.SetTrigger("gpower");
+                animator.Update(0.01f);
+                follower.NotifyIntroGPowerStarted();
+            }
         }
 
         private static void CleanExistingEquipment(GameObject visual)

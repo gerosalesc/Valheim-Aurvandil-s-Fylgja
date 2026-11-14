@@ -44,10 +44,11 @@ namespace StandsOfValheim
         public Vector3 BlockOffset  = new Vector3(0.00f, 0.25f, 0.85f);  // hovering right in front of player as shield
         public float Smooth = 12f;
 
-        // Entrance animation
-        private float _entranceTimer = 0.7f;
-        private float _entranceDuration = 0.7f;
-        private Vector3 _targetScale = new Vector3(1.22f, 1.22f, 1.22f);
+        // Full scale on summon (no slow wakeup or scale-in delay)
+        private readonly Vector3 _targetScale = new Vector3(1.22f, 1.22f, 1.22f);
+        private int[] _idleStateHashes;
+        private bool _isPlayingIntroGPower = false;
+        private float _introGPowerTimer = 0f;
 
         // Barrage tuning (Hit-limited: 12 rapid punches per trigger)
         public const int MaxPunchesPerBarrage = 12;
@@ -100,10 +101,65 @@ namespace StandsOfValheim
         private bool _hasBlockingParam = false;
         private readonly HashSet<string> _animParamNames = new HashSet<string>();
 
+        internal void ConfigureAnimatorStates(int[] idleStateHashes)
+        {
+            _idleStateHashes = idleStateHashes;
+        }
+
+        internal void NotifyIntroGPowerStarted()
+        {
+            _isPlayingIntroGPower = true;
+            _introGPowerTimer = 1.6f;
+        }
+
+        private bool IsBlockingNow() =>
+            !IsAttacking && Owner != null && Owner.IsBlocking() && StandManager.AreHandsFree(Owner);
+
+        private void InterruptIntroGPower(bool resetBaseLayer)
+        {
+            if (!_isPlayingIntroGPower) return;
+            _isPlayingIntroGPower = false;
+            _introGPowerTimer = 0f;
+
+            if (StandAnimator == null) return;
+            if (HasParameter("gpower"))
+            {
+                StandAnimator.ResetTrigger("gpower");
+            }
+
+            if (_idleStateHashes == null) return;
+            int startLayer = resetBaseLayer ? 0 : 1;
+            int count = Mathf.Min(_idleStateHashes.Length, StandAnimator.layerCount);
+            for (int layer = startLayer; layer < count; layer++)
+            {
+                int idleHash = _idleStateHashes[layer];
+                if (idleHash == 0) continue;
+
+                var cur = StandAnimator.GetCurrentAnimatorStateInfo(layer);
+                if (cur.fullPathHash != idleHash || StandAnimator.IsInTransition(layer))
+                {
+                    StandAnimator.CrossFadeInFixedTime(idleHash, 0.04f, layer, 0f);
+                }
+            }
+        }
+
+        private bool AreAllLayersAtIdle()
+        {
+            if (StandAnimator == null || _idleStateHashes == null) return true;
+            int count = Mathf.Min(_idleStateHashes.Length, StandAnimator.layerCount);
+            for (int layer = 0; layer < count; layer++)
+            {
+                int idleHash = _idleStateHashes[layer];
+                if (idleHash == 0) continue;
+                if (StandAnimator.IsInTransition(layer)) return false;
+                if (StandAnimator.GetCurrentAnimatorStateInfo(layer).fullPathHash != idleHash) return false;
+            }
+            return true;
+        }
+
         private void Start()
         {
-            _entranceTimer = _entranceDuration;
-            transform.localScale = _targetScale * 0.25f;
+            transform.localScale = _targetScale;
             _barrageVfx = new StandBarrageVfx();
 
             // Detect player's unarmed attack animation configuration
@@ -144,19 +200,25 @@ namespace StandsOfValheim
             if (_blockReactionTimer > 0f) _blockReactionTimer -= Time.deltaTime;
             _barrageVfx?.Tick(Time.deltaTime);
 
-            // Entrance emergence animation
-            if (_entranceTimer > 0f)
+            if (_isPlayingIntroGPower)
             {
-                _entranceTimer -= Time.deltaTime;
-                float progress = 1f - Mathf.Clamp01(_entranceTimer / _entranceDuration);
-                float scaleMult = Mathf.Lerp(0.25f, 1.0f, Mathf.SmoothStep(0f, 1f, progress * 1.15f));
-                transform.localScale = _targetScale * scaleMult;
-
-                if (Aura != null)
+                _introGPowerTimer -= Time.deltaTime;
+                if (_introGPowerTimer <= 0f || (_introGPowerTimer < 1.35f && AreAllLayersAtIdle()))
                 {
-                    Aura.intensity = Mathf.Lerp(4.5f, 1.4f, progress);
-                    Aura.range = Mathf.Lerp(6.0f, 4.2f, progress);
+                    _isPlayingIntroGPower = false;
                 }
+            }
+
+            bool isBlocking = IsBlockingNow();
+            if (isBlocking && _isPlayingIntroGPower)
+            {
+                InterruptIntroGPower(resetBaseLayer: true);
+            }
+
+            // Sync blocking parameter before Unity evaluates Animator this frame
+            if (_hasBlockingParam && StandAnimator != null)
+            {
+                StandAnimator.SetBool(_blockingParamHash, isBlocking);
             }
 
             if (IsAttacking)
@@ -171,7 +233,7 @@ namespace StandsOfValheim
                     UpdateAttack();
                 }
             }
-            else if (Owner.IsBlocking() && StandManager.AreHandsFree(Owner))
+            else if (isBlocking)
             {
                 UpdateBlockDefend();
             }
@@ -183,16 +245,11 @@ namespace StandsOfValheim
 
         private void LateUpdate()
         {
-            // Sync blocking animator state
-            bool isBlocking = !IsAttacking && Owner != null && Owner.IsBlocking() && StandManager.AreHandsFree(Owner);
-            if (_hasBlockingParam && StandAnimator != null)
-            {
-                StandAnimator.SetBool(_blockingParamHash, isBlocking);
-            }
+            bool isBlocking = IsBlockingNow();
 
             _guardBlend = Mathf.MoveTowards(_guardBlend, isBlocking ? 1f : 0f, Time.deltaTime * 8f);
 
-            // Defensive, flurry boost, and entrance bone posing
+            // Defensive and flurry punch bone posing
             if (IsAttacking && _attackMode == AttackMode.Barrage)
             {
                 // Subtle high-frequency alternating forearm drive in sync with 6.2x punch clips
@@ -224,12 +281,6 @@ namespace StandsOfValheim
                     if (FistL != null) FistL.position += (transform.right * 0.15f + transform.forward * 0.16f + transform.up * 0.10f) * _guardBlend;
                     if (FistR != null) FistR.position += (-transform.right * 0.15f + transform.forward * 0.16f + transform.up * 0.10f) * _guardBlend;
                 }
-            }
-            else if (_entranceTimer > 0.35f)
-            {
-                // Manifestation flex during entrance
-                if (FistL != null) FistL.position += transform.right * 0.20f + transform.forward * 0.18f + transform.up * 0.12f;
-                if (FistR != null) FistR.position += -transform.right * 0.20f + transform.forward * 0.18f + transform.up * 0.12f;
             }
         }
 
@@ -273,6 +324,9 @@ namespace StandsOfValheim
             }
 
             Owner.UseStamina(staminaCost);
+
+            // Cancel the spawn Guardian Power pose cleanly if the player attacks right away
+            InterruptIntroGPower(resetBaseLayer: false);
 
             IsAttacking = true;
             _attackMode = mode;
@@ -537,7 +591,7 @@ namespace StandsOfValheim
             transform.rotation = Quaternion.Slerp(transform.rotation, t.rotation, Smooth * Time.deltaTime);
 
             // Return aura intensity to normal
-            if (Aura != null && _entranceTimer <= 0f)
+            if (Aura != null)
             {
                 Aura.intensity = Mathf.Lerp(Aura.intensity, 1.4f, Smooth * Time.deltaTime);
                 Aura.range = Mathf.Lerp(Aura.range, 4.2f, Smooth * Time.deltaTime);
