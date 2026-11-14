@@ -89,6 +89,7 @@ namespace StandsOfValheim
         // Block reaction state
         private float _blockReactionTimer = 0f;
         private bool _isParryReaction = false;
+        private float _guardBlend = 0f;
 
         // Animator parameter cache
         private int _blockingParamHash = 0;
@@ -183,6 +184,8 @@ namespace StandsOfValheim
                 StandAnimator.SetBool(_blockingParamHash, isBlocking);
             }
 
+            _guardBlend = Mathf.MoveTowards(_guardBlend, isBlocking ? 1f : 0f, Time.deltaTime * 8f);
+
             // Defensive and entrance bone posing (punching now uses pure accelerated player animator)
             if (isBlocking)
             {
@@ -203,9 +206,9 @@ namespace StandsOfValheim
                 }
                 else
                 {
-                    // Guard stance: cross arms across chest
-                    if (FistL != null) FistL.position += transform.right * 0.15f + transform.forward * 0.16f + transform.up * 0.10f;
-                    if (FistR != null) FistR.position += -transform.right * 0.15f + transform.forward * 0.16f + transform.up * 0.10f;
+                    // Guard stance: cross arms across chest (eased in so it never pops)
+                    if (FistL != null) FistL.position += (transform.right * 0.15f + transform.forward * 0.16f + transform.up * 0.10f) * _guardBlend;
+                    if (FistR != null) FistR.position += (-transform.right * 0.15f + transform.forward * 0.16f + transform.up * 0.10f) * _guardBlend;
                 }
             }
             else if (_entranceTimer > 0.35f)

@@ -171,6 +171,12 @@ namespace StandsOfValheim
 
             // 4. Locate Head bone & Equip Golden Dvergr Circlet + swept-up Star Platinum spiky black mane
             var animator = visual.GetComponent<Animator>();
+            if (animator != null)
+            {
+                // Re-pose bones every render frame so StandFollower.LateUpdate offsets never stack on a stale pose
+                animator.updateMode = AnimatorUpdateMode.Normal;
+                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            }
             Transform headBone = FindBone(bodyModel, visual, HumanBodyBones.Head, "Head");
             Transform neckBone = FindBone(bodyModel, visual, HumanBodyBones.Neck, "Neck");
 
