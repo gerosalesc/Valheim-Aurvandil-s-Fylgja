@@ -7,7 +7,7 @@ namespace StandsOfValheim
 {
     /// <summary>
     /// Aurvandil's Fylgja as a Valheim guardian (forsaken) power. Enforces "one at a time",
-    /// the cooldown (60s), active duration (60s), the HUD slot, and activation via the 'F' power key.
+    /// the cooldown (10m / 600s), active duration (5m / 300s), the HUD slot, and activation via the 'F' power key.
     /// </summary>
     public class SE_AurvandilsFylgja : SE_Stats
     {
@@ -208,11 +208,11 @@ namespace StandsOfValheim
         private static void ConfigureStatusEffect(StatusEffect effect, ObjectDB db, Sprite icon)
         {
             effect.m_name = "Aurvandil's Fylgja";
-            effect.m_tooltip = "Summon the Aurvandil's Fylgja (60s active, 60s cooldown). Free your hands for Stand punch, ORA barrage, and Stand shield defense!";
+            effect.m_tooltip = "Summon the Aurvandil's Fylgja (5m active, 10m cooldown). Free your hands for Stand punch, ORA barrage, and Stand shield defense!";
             effect.m_startMessageType = MessageHud.MessageType.Center;
             effect.m_startMessage = "AURVANDIL'S FYLGJA!";
-            effect.m_ttl = 60f;
-            effect.m_cooldown = 60f;
+            effect.m_ttl = 300f;
+            effect.m_cooldown = 600f;
             effect.m_activationAnimation = "gpower";
             if (icon != null) effect.m_icon = icon;
 
