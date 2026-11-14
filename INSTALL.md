@@ -38,7 +38,7 @@ Valheim requires **BepInEx** to load plugins. Choose one of the two options belo
 
 ## Step 3: Install `StandsOfValheim.dll`
 
-1. Obtain **`StandsOfValheim.dll`** from the repository's **Releases** page (or build it from source—see [Building from Source](#building-from-source) below).
+1. Download **`StandsOfValheim.dll`** directly from [`Releases/StandsOfValheim.dll`](Releases/StandsOfValheim.dll) in this repository (click the file → **Download raw file**), or build it from source—see [Building from Source](#building-from-source) below.
 2. Copy `StandsOfValheim.dll` into your plugins folder:
    - **Manual Steam install:** `...\Valheim\BepInEx\plugins\StandsOfValheim.dll`
    - **Mod manager install:** `<Your Profile Folder>\BepInEx\plugins\StandsOfValheim.dll`

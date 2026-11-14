@@ -27,7 +27,7 @@ For step-by-step Windows setup instructions, see the [Installation & Usage Guide
    - **Hold Right Mouse Button:** Guard or time a **6x Parry** with Aurvandil's Fylgja.
 
 ## Installation & Build
-See [INSTALL.md](INSTALL.md) for full Windows installation steps (BepInEx + single-file `StandsOfValheim.dll` drop-in).
+Download the prebuilt plugin directly from [`Releases/StandsOfValheim.dll`](Releases/StandsOfValheim.dll) and place it in `Valheim/BepInEx/plugins/`. See [INSTALL.md](INSTALL.md) for full Windows installation steps.
 
 To compile from source (requires .NET SDK and Valheim with BepInEx installed):
 ```bash
