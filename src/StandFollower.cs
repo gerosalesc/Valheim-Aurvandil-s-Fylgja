@@ -49,14 +49,16 @@ namespace StandsOfValheim
         private float _entranceDuration = 0.7f;
         private Vector3 _targetScale = new Vector3(1.22f, 1.22f, 1.22f);
 
-        // Barrage tuning (Hit-limited: 5 punches per trigger)
-        public const int MaxPunchesPerBarrage = 5;
+        // Barrage tuning (Hit-limited: 12 rapid punches per trigger)
+        public const int MaxPunchesPerBarrage = 12;
         private const float BarrageStaminaCost = 16f;
-        private const float BarrageDuration = 0.85f;
-        private const float BarrageFirstHitDelay = 0.04f;
-        private const float BarrageHitInterval = 0.12f;
-        private const float BarrageAnimInterval = 0.14f;
-        private const float BarrageAnimSpeed = 3.2f;
+        private const float BarrageDuration = 1.45f;
+        private const float BarrageFirstHitDelay = 0.03f;
+        private const float BarrageHitInterval = 0.115f;
+        private const float BarrageAnimInterval = 0.07f;
+        private const float BarrageAnimSpeed = 6.2f;
+        private const float BarrageAnimStartNormalized = 0.22f;
+        private const float BarrageVfxInterval = 0.025f;
         private const float BarrageCooldown = 0.25f;
 
         // Single-punch tuning (1 hit, silent, fast left-click trigger)
@@ -76,7 +78,9 @@ namespace StandsOfValheim
         private float _punchAnimTime = 0f;
         private float _nextPunchDamageTime = 0f;
         private float _nextPunchAnimTriggerTime = 0f;
+        private float _nextBarrageVfxTime = 0f;
         private float _cooldownTimer = 0f;
+        private StandBarrageVfx _barrageVfx;
 
         // Player unarmed animation parameters
         private string _punchAnimBase = "unarmed_attack";
@@ -100,6 +104,7 @@ namespace StandsOfValheim
         {
             _entranceTimer = _entranceDuration;
             transform.localScale = _targetScale * 0.25f;
+            _barrageVfx = new StandBarrageVfx();
 
             // Detect player's unarmed attack animation configuration
             if (Owner != null && Owner.m_unarmedWeapon != null)
@@ -137,6 +142,7 @@ namespace StandsOfValheim
 
             if (_cooldownTimer > 0f) _cooldownTimer -= Time.deltaTime;
             if (_blockReactionTimer > 0f) _blockReactionTimer -= Time.deltaTime;
+            _barrageVfx?.Tick(Time.deltaTime);
 
             // Entrance emergence animation
             if (_entranceTimer > 0f)
@@ -186,8 +192,16 @@ namespace StandsOfValheim
 
             _guardBlend = Mathf.MoveTowards(_guardBlend, isBlocking ? 1f : 0f, Time.deltaTime * 8f);
 
-            // Defensive and entrance bone posing (punching now uses pure accelerated player animator)
-            if (isBlocking)
+            // Defensive, flurry boost, and entrance bone posing
+            if (IsAttacking && _attackMode == AttackMode.Barrage)
+            {
+                // Subtle high-frequency alternating forearm drive in sync with 6.2x punch clips
+                float waveL = Mathf.Max(0f, Mathf.Sin(_punchAnimTime * 54f));
+                float waveR = Mathf.Max(0f, Mathf.Sin(_punchAnimTime * 54f + Mathf.PI));
+                if (ArmL != null) ArmL.position += transform.forward * (waveL * 0.085f);
+                if (ArmR != null) ArmR.position += transform.forward * (waveR * 0.085f);
+            }
+            else if (isBlocking)
             {
                 if (_blockReactionTimer > 0f)
                 {
@@ -272,8 +286,9 @@ namespace StandsOfValheim
                 _barragePunchIndex = 1; // 0 triggered immediately below
                 _nextPunchDamageTime = Time.time + BarrageFirstHitDelay;
                 _nextPunchAnimTriggerTime = BarrageAnimInterval;
+                _nextBarrageVfxTime = 0f;
 
-                TriggerPunchAnim(BarrageAnimSpeed, 0);
+                TriggerPunchAnim(BarrageAnimSpeed, 0, BarrageAnimStartNormalized, 0.018f);
 
                 if (StandAudio != null && SoundManager.OraClip != null)
                 {
@@ -288,7 +303,7 @@ namespace StandsOfValheim
                     MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, "★ STAR PLATINUM: ORA ORA ORA! ★");
                 }
 
-                Plugin.Log?.LogInfo("Star Platinum: 5-hit ORA barrage activated!");
+                Plugin.Log?.LogInfo("Star Platinum: 12-hit ORA barrage activated!");
             }
             else
             {
@@ -316,7 +331,7 @@ namespace StandsOfValheim
             return AttackStartStatus.Started;
         }
 
-        private void TriggerPunchAnim(float speed, int chainIdx)
+        private void TriggerPunchAnim(float speed, int chainIdx, float startNormalizedTime = 0f, float crossFadeDuration = 0.04f)
         {
             if (StandAnimator == null) return;
 
@@ -352,14 +367,14 @@ namespace StandsOfValheim
             int stateHash = Animator.StringToHash(triggerName);
             if (StandAnimator.HasState(0, stateHash))
             {
-                StandAnimator.CrossFadeInFixedTime(stateHash, 0.04f, 0, 0f);
+                StandAnimator.CrossFadeInFixedTime(stateHash, crossFadeDuration, 0, startNormalizedTime);
             }
             else
             {
                 int baseHash = Animator.StringToHash(baseAnim);
                 if (StandAnimator.HasState(0, baseHash))
                 {
-                    StandAnimator.CrossFadeInFixedTime(baseHash, 0.04f, 0, 0f);
+                    StandAnimator.CrossFadeInFixedTime(baseHash, crossFadeDuration, 0, startNormalizedTime);
                 }
             }
         }
@@ -407,23 +422,46 @@ namespace StandsOfValheim
             if (_attackMode == AttackMode.Barrage)
             {
                 // Subtle flurry recoil forward with punches
-                transform.position += transform.forward * (Mathf.Abs(Mathf.Sin(_punchAnimTime * 28f)) * 0.06f);
+                transform.position += transform.forward * (Mathf.Abs(Mathf.Sin(_punchAnimTime * 42f)) * 0.06f);
 
-                // Cycle punch animation rapidly across the 5 hits (0, 1, 0, 1, 2)
+                // Flare Stand aura during barrage
+                if (Aura != null)
+                {
+                    float pulse = 2.8f + Mathf.Abs(Mathf.Sin(_punchAnimTime * 40f)) * 0.65f;
+                    Aura.intensity = Mathf.Lerp(Aura.intensity, pulse, Smooth * Time.deltaTime);
+                    Aura.range = Mathf.Lerp(Aura.range, 5.4f, Smooth * Time.deltaTime);
+                }
+
+                // Emit high-frequency spectral afterimage punches forward
+                if (_punchAnimTime >= _nextBarrageVfxTime)
+                {
+                    _nextBarrageVfxTime = _punchAnimTime + BarrageVfxInterval;
+                    _barrageVfx?.SpawnFlurryFist(transform);
+                }
+
+                // Cycle valid unarmed punch chains rapidly (~14 punches/sec), skipping slow wind-up
                 if (_punchAnimTime >= _nextPunchAnimTriggerTime)
                 {
                     _nextPunchAnimTriggerTime = _punchAnimTime + BarrageAnimInterval;
-                    int chainIdx = (_barragePunchIndex < 4) ? (_barragePunchIndex % 2) : 2;
+                    int chainIdx = _barragePunchIndex % Mathf.Max(1, _punchChainLevels);
                     _barragePunchIndex++;
-                    TriggerPunchAnim(BarrageAnimSpeed, chainIdx);
+                    TriggerPunchAnim(BarrageAnimSpeed, chainIdx, BarrageAnimStartNormalized, 0.018f);
                 }
 
-                // Punch damage tick every ~0.12s, strictly limited to 5 hits per trigger
+                // Punch damage tick every ~0.115s, strictly limited to 12 hits per trigger (~1.30s total)
                 if (Time.time >= _nextPunchDamageTime && _punchesRemaining > 0)
                 {
                     _nextPunchDamageTime = Time.time + BarrageHitInterval;
+                    bool isFinisher = _punchesRemaining == 1;
                     _punchesRemaining--;
-                    PerformPunchHit();
+
+                    PerformPunchHit(
+                        damage: isFinisher ? 45f : 20f,
+                        pushForce: isFinisher ? 32f : 5f,
+                        staggerMultiplier: isFinisher ? 3.0f : 1.5f);
+
+                    Vector3 ringPos = transform.position + transform.up * 1.32f + transform.forward * 1.30f;
+                    _barrageVfx?.SpawnShockRing(ringPos, transform.forward, isFinisher ? 1.55f : 1.0f);
 
                     if (_punchesRemaining <= 0)
                     {
@@ -438,7 +476,7 @@ namespace StandsOfValheim
                 if (Time.time >= _nextPunchDamageTime && _punchesRemaining > 0)
                 {
                     _punchesRemaining--;
-                    PerformPunchHit();
+                    PerformPunchHit(damage: 35f, pushForce: 25f, staggerMultiplier: 2.5f);
                 }
             }
 
@@ -485,6 +523,7 @@ namespace StandsOfValheim
             {
                 StandAudio.Stop();
             }
+            _barrageVfx?.Dispose();
         }
 
         private void UpdateFollow()
@@ -505,7 +544,7 @@ namespace StandsOfValheim
             }
         }
 
-        private void PerformPunchHit()
+        private void PerformPunchHit(float damage, float pushForce, float staggerMultiplier)
         {
             Vector3 center = Owner.transform.position + Owner.transform.forward * 2.2f + Vector3.up * 1.1f;
             Collider[] hits = Physics.OverlapSphere(center, 2.2f);
@@ -524,10 +563,10 @@ namespace StandsOfValheim
                 {
                     m_point = col.bounds.ClosestPoint(center),
                     m_dir = Owner.transform.forward,
-                    m_pushForce = 25f,
-                    m_staggerMultiplier = 2.5f
+                    m_pushForce = pushForce,
+                    m_staggerMultiplier = staggerMultiplier
                 };
-                hit.m_damage.m_blunt = 35f;
+                hit.m_damage.m_blunt = damage;
                 hit.SetAttacker(Owner);
 
                 destructible.Damage(hit);

@@ -382,7 +382,7 @@ namespace StandsOfValheim
             return s > 0.01f ? s : 1f;
         }
 
-        private static GameObject CreateGearObject(string name, Mesh mesh, Material material)
+        internal static GameObject CreateGearObject(string name, Mesh mesh, Material material)
         {
             var go = new GameObject(name);
             var mf = go.AddComponent<MeshFilter>();
@@ -625,7 +625,7 @@ namespace StandsOfValheim
             return tex;
         }
 
-        private static Material CreateCrispMaterial(Color color, float metallic, float glossiness, Color emission, Texture2D customTexture = null)
+        internal static Material CreateCrispMaterial(Color color, float metallic, float glossiness, Color emission, Texture2D customTexture = null)
         {
             Material mat = null;
             Shader shader = FindValheimOpaqueShader();
@@ -1366,7 +1366,7 @@ namespace StandsOfValheim
         // Reusable Mesh / Ring / Outward-Normal Helpers
         // ----------------------------------------------------------------------
 
-        private static Vector3[] CreateEllipseRing(Vector3 center, Vector3 axisU, Vector3 axisV, float rU, float rV, int count)
+        internal static Vector3[] CreateEllipseRing(Vector3 center, Vector3 axisU, Vector3 axisV, float rU, float rV, int count)
         {
             var pts = new Vector3[count];
             for (int i = 0; i < count; i++)
@@ -1433,7 +1433,7 @@ namespace StandsOfValheim
             AppendLoftedRings(verts, tris, rings, capStart: true, capEnd: true);
         }
 
-        private static void AppendLoftedRings(List<Vector3> verts, List<int> tris, List<Vector3[]> rings, bool capStart, bool capEnd)
+        internal static void AppendLoftedRings(List<Vector3> verts, List<int> tris, List<Vector3[]> rings, bool capStart, bool capEnd)
         {
             if (rings.Count < 2) return;
             int n = rings[0].Length;
@@ -1496,7 +1496,7 @@ namespace StandsOfValheim
             }
         }
 
-        private static void AppendClosedLoopTorus(List<Vector3> verts, List<int> tris, List<Vector3[]> rings)
+        internal static void AppendClosedLoopTorus(List<Vector3> verts, List<int> tris, List<Vector3[]> rings)
         {
             if (rings.Count < 3) return;
             int count = rings.Count;
@@ -1537,7 +1537,7 @@ namespace StandsOfValheim
             return sum / ring.Length;
         }
 
-        private static Mesh FinalizeMesh(string name, List<Vector3> verts, List<int> tris, float uvScale)
+        internal static Mesh FinalizeMesh(string name, List<Vector3> verts, List<int> tris, float uvScale)
         {
             var mesh = new Mesh { name = name };
             mesh.SetVertices(verts);
