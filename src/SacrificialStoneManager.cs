@@ -25,8 +25,8 @@ namespace StandsOfValheim
         private static bool s_spawnCheckInProgress;
         private static float s_lastSpawnTime = -999f;
 
-        internal static readonly Color IdleEmissiveColor = new Color(0.48f, 0.34f, 0.62f, 1.0f);
-        internal static readonly Color ActiveEmissiveColor = new Color(0.95f, 0.72f, 1.00f, 1.0f);
+        internal static readonly Color IdleEmissiveColor = new Color(0.26f, 0.18f, 0.36f, 1.0f);
+        internal static readonly Color ActiveEmissiveColor = new Color(0.52f, 0.34f, 0.68f, 1.0f);
 
         public static void RegisterPrefab(ZNetScene zns)
         {
@@ -251,42 +251,11 @@ namespace StandsOfValheim
                     }
                 }
 
-                // Recolor active_effects lights & particles from Yagluth red to Star Platinum cosmic purple-gold
-                if (bossStone.m_activeEffect != null)
-                {
-                    foreach (var light in bossStone.m_activeEffect.GetComponentsInChildren<Light>(true))
-                    {
-                        if (light != null)
-                        {
-                            light.color = new Color(0.76f, 0.42f, 1.0f);
-                        }
-                    }
-
-                    foreach (var ps in bossStone.m_activeEffect.GetComponentsInChildren<ParticleSystem>(true))
-                    {
-                        if (ps != null)
-                        {
-                            var main = ps.main;
-                            main.startColor = new ParticleSystem.MinMaxGradient(
-                                new Color(0.75f, 0.35f, 1.0f, 0.9f),
-                                new Color(1.0f, 0.84f, 0.38f, 0.9f));
-                        }
-                    }
-                }
-
-                // Ensure soft cosmic front-face illumination light exists
+                // Remove any legacy custom point light so only the vanilla BossStone active_effects aura is used
                 Transform frontLightTr = bossStone.transform.Find("StarPlatinumStoneLight");
-                if (frontLightTr == null)
+                if (frontLightTr != null)
                 {
-                    var lightGo = new GameObject("StarPlatinumStoneLight");
-                    lightGo.transform.SetParent(bossStone.transform, false);
-                    lightGo.transform.localPosition = new Vector3(0.21f, 3.15f, -2.25f);
-                    var frontLight = lightGo.AddComponent<Light>();
-                    frontLight.type = LightType.Point;
-                    frontLight.color = new Color(0.78f, 0.46f, 1.0f);
-                    frontLight.range = 5.6f;
-                    frontLight.intensity = 1.35f;
-                    frontLight.shadows = LightShadows.None;
+                    UnityEngine.Object.Destroy(frontLightTr.gameObject);
                 }
             }
             catch (Exception ex)
@@ -451,19 +420,18 @@ namespace StandsOfValheim
                         Color targetRgb = new Color(ov.r, ov.g, ov.b, baseCol.a);
                         mainPixels[idx] = Color.Lerp(baseCol, targetRgb, alpha);
 
-                        // Extract cosmic purple & gold nebula + sparkles + 8-pointed star rim for _EmissiveTex
+                        // Extract cosmic purple & gold nebula + 8-pointed star rim for _EmissiveTex without white blowout
                         float lum = 0.299f * ov.r + 0.587f * ov.g + 0.114f * ov.b;
-                        float purpleGlow = Mathf.Max(0f, Mathf.Min(ov.r, ov.b) - ov.g * 0.82f);
-                        float goldGlow = Mathf.Max(0f, Mathf.Min(ov.r, ov.g) - ov.b * 0.85f);
-                        float sparkle = Mathf.Max(0f, lum - 0.44f);
-                        float emisStrength = Mathf.Clamp01((purpleGlow * 2.6f + goldGlow * 2.4f + sparkle * 1.35f) * alpha);
+                        float purpleGlow = Mathf.Max(0f, Mathf.Min(ov.r, ov.b) - ov.g * 0.86f);
+                        float goldGlow = Mathf.Max(0f, Mathf.Min(ov.r, ov.g) - ov.b * 0.88f);
+                        float emisStrength = Mathf.Clamp01((purpleGlow * 2.2f + goldGlow * 2.0f) * alpha);
 
                         if (emisStrength > 0.02f)
                         {
                             emisPixels[idx] = new Color(
-                                Mathf.Clamp01(ov.r * 1.25f) * emisStrength,
-                                Mathf.Clamp01(ov.g * 1.15f) * emisStrength,
-                                Mathf.Clamp01(ov.b * 1.35f) * emisStrength,
+                                ov.r * emisStrength,
+                                ov.g * emisStrength,
+                                ov.b * emisStrength,
                                 1.0f);
                         }
 
@@ -811,7 +779,6 @@ namespace StandsOfValheim
     public class StarPlatinumBossStone : MonoBehaviour
     {
         private BossStone m_bossStone;
-        private Light m_frontLight;
 
         private void Awake()
         {
@@ -846,17 +813,6 @@ namespace StandsOfValheim
                     if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", targetEmis);
                     if (mat.HasProperty("_EmissiveColor")) mat.SetColor("_EmissiveColor", targetEmis);
                 }
-            }
-
-            if (m_frontLight == null)
-            {
-                Transform t = transform.Find("StarPlatinumStoneLight");
-                if (t != null) m_frontLight = t.GetComponent<Light>();
-            }
-            if (m_frontLight != null)
-            {
-                m_frontLight.intensity = active ? 2.6f : 1.35f;
-                m_frontLight.range = active ? 7.0f : 5.6f;
             }
         }
     }
